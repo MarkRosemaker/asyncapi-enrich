@@ -92,13 +92,11 @@ func (r *Recorder) Record(ctx context.Context, ss Sessions) (*Report, error) {
 	var wg sync.WaitGroup
 
 	for i, s := range ss {
-		wg.Add(1)
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			reports[i], errs[i] = r.session(ctx, s, &mu, save)
-		}()
+		})
 	}
 
 	wg.Wait()

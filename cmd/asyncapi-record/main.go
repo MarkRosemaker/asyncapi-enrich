@@ -41,7 +41,7 @@ type kinds map[string]int
 func (k kinds) String() string { return fmt.Sprintf("%v", map[string]int(k)) }
 
 func (k kinds) Set(v string) error {
-	for _, part := range strings.Split(v, ",") {
+	for part := range strings.SplitSeq(v, ",") {
 		name, count, ok := strings.Cut(part, "=")
 		if !ok {
 			return errors.New("must be of the form kind=count[,kind=count]")
