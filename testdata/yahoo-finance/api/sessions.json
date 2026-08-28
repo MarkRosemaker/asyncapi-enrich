@@ -3,10 +3,46 @@
     "uri": "wss://streamer.finance.yahoo.com/?version=2",
     "frames": [
       {
+        "at": "53.458µs",
         "send": {
           "subscribe": [
             "AAPL"
           ]
+        }
+      },
+      {
+        "at": "688.958708ms",
+        "receive": {
+          "type": "pricing",
+          "message": "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I1sW3AmWAMyNAsAFk2AEE"
+        }
+      },
+      {
+        "at": "1.650569416s",
+        "receive": {
+          "type": "pricing",
+          "message": "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I9MW3AmWAMyNA2AEE"
+        }
+      },
+      {
+        "at": "2.694992666s",
+        "receive": {
+          "type": "pricing",
+          "message": "CgRBQVBMFYaQnkMY0NG+iYloKgNOTVMwCDgBRRhxTz9ImMu3AmWAJCNA2AEE"
+        }
+      },
+      {
+        "at": "3.592835666s",
+        "receive": {
+          "type": "pricing",
+          "message": "CgRBQVBMFQCQnkMYoOG+iYloKgNOTVMwCDgBRecbTz9I8NG3AmWA4SJAsAFa2AEE"
+        }
+      },
+      {
+        "at": "4.624437375s",
+        "receive": {
+          "type": "pricing",
+          "message": "CgRBQVBMFQCQnkMY8PC+iYloKgNOTVMwCDgBRecbTz9I9ta3AmWA4SJAsAHIAdgBBA=="
         }
       }
     ]
