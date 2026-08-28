@@ -10,7 +10,7 @@ import (
 
 // enrichOne enriches a single session with one send frame carrying payload,
 // and returns the resulting document.
-func enrichOne(t *testing.T, uri string, payload string) *asyncapi.Document {
+func enrichOne(t *testing.T, uri, payload string) *asyncapi.Document {
 	t.Helper()
 
 	doc := enrich.NewDocument()
