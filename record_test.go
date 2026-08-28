@@ -47,7 +47,7 @@ func serve(t *testing.T, fn func(*websocket.Conn)) string {
 
 			return
 		}
-		defer conn.Close()
+		defer conn.Close() //nolint:errcheck
 
 		fn(conn)
 	}))

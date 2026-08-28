@@ -99,7 +99,7 @@ func (r *Recorder) Session(ctx context.Context, s *Session) (*SessionReport, err
 		// The URI is masked before it reaches an error a caller might log.
 		return nil, fmt.Errorf("dialing %s: %w", mask.URL(u), err)
 	}
-	defer conn.Close()
+	defer conn.Close() //nolint:errcheck
 
 	start := now()
 	sent := s.sends()
