@@ -1,0 +1,222 @@
+{
+  "asyncapi": "3.1.0",
+  "info": {
+    "title": "API",
+    "version": "0.0.1"
+  },
+  "servers": {
+    "ws-finnhub-io": {
+      "host": "ws.finnhub.io",
+      "protocol": "ws",
+      "security": [
+        {
+          "$ref": "#/components/securitySchemes/token"
+        }
+      ]
+    }
+  },
+  "defaultContentType": "application/json",
+  "channels": {
+    "ws-finnhub-io": {
+      "messages": {
+        "ping": {
+          "payload": {
+            "$ref": "#/components/schemas/Ping"
+          },
+          "name": "ping"
+        },
+        "subscribe": {
+          "payload": {
+            "$ref": "#/components/schemas/Subscribe"
+          },
+          "name": "subscribe"
+        },
+        "trade": {
+          "payload": {
+            "$ref": "#/components/schemas/Trade"
+          },
+          "name": "trade"
+        },
+        "unsubscribe": {
+          "payload": {
+            "$ref": "#/components/schemas/Unsubscribe"
+          },
+          "name": "unsubscribe"
+        }
+      },
+      "servers": [
+        {
+          "$ref": "#/servers/ws-finnhub-io"
+        }
+      ]
+    }
+  },
+  "operations": {
+    "receive": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/ws-finnhub-io"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/ws-finnhub-io/messages/ping"
+        },
+        {
+          "$ref": "#/channels/ws-finnhub-io/messages/trade"
+        }
+      ]
+    },
+    "send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/ws-finnhub-io"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/ws-finnhub-io/messages/subscribe"
+        },
+        {
+          "$ref": "#/channels/ws-finnhub-io/messages/unsubscribe"
+        }
+      ]
+    }
+  },
+  "components": {
+    "schemas": {
+      "Ping": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "examples": [
+              "ping"
+            ]
+          }
+        }
+      },
+      "Subscribe": {
+        "type": "object",
+        "required": [
+          "type",
+          "symbol"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "examples": [
+              "AAPL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "examples": [
+              "subscribe"
+            ]
+          }
+        }
+      },
+      "Trade": {
+        "type": "object",
+        "required": [
+          "type",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "t",
+                "p",
+                "v",
+                "c",
+                "s"
+              ],
+              "properties": {
+                "c": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "examples": [
+                      "1",
+                      "8"
+                    ]
+                  }
+                },
+                "p": {
+                  "type": "number",
+                  "format": "double",
+                  "examples": [
+                    317.775,
+                    317.77,
+                    317.83
+                  ]
+                },
+                "s": {
+                  "type": "string",
+                  "examples": [
+                    "AAPL"
+                  ]
+                },
+                "t": {
+                  "type": "integer",
+                  "examples": [
+                    1787924136086,
+                    1787924136087,
+                    1787924146245
+                  ]
+                },
+                "v": {
+                  "type": "integer",
+                  "examples": [
+                    200,
+                    40,
+                    57
+                  ]
+                }
+              }
+            }
+          },
+          "type": {
+            "type": "string",
+            "examples": [
+              "trade"
+            ]
+          }
+        }
+      },
+      "Unsubscribe": {
+        "type": "object",
+        "required": [
+          "type",
+          "symbol"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "examples": [
+              "AAPL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "examples": [
+              "unsubscribe"
+            ]
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "token": {
+        "type": "httpApiKey",
+        "name": "token",
+        "in": "query"
+      }
+    }
+  }
+}

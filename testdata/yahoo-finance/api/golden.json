@@ -1,0 +1,135 @@
+{
+  "asyncapi": "3.1.0",
+  "info": {
+    "title": "API",
+    "version": "0.0.1"
+  },
+  "servers": {
+    "streamer-finance-yahoo-com": {
+      "host": "streamer.finance.yahoo.com",
+      "protocol": "ws"
+    }
+  },
+  "defaultContentType": "application/json",
+  "channels": {
+    "streamer-finance-yahoo-com": {
+      "messages": {
+        "pricing": {
+          "payload": {
+            "$ref": "#/components/schemas/Pricing"
+          },
+          "name": "pricing"
+        },
+        "subscribe": {
+          "payload": {
+            "$ref": "#/components/schemas/Subscribe"
+          },
+          "name": "subscribe"
+        },
+        "unsubscribe": {
+          "payload": {
+            "$ref": "#/components/schemas/Unsubscribe"
+          },
+          "name": "unsubscribe"
+        }
+      },
+      "servers": [
+        {
+          "$ref": "#/servers/streamer-finance-yahoo-com"
+        }
+      ]
+    }
+  },
+  "operations": {
+    "receive": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/streamer-finance-yahoo-com"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/streamer-finance-yahoo-com/messages/pricing"
+        }
+      ]
+    },
+    "send": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/streamer-finance-yahoo-com"
+      },
+      "messages": [
+        {
+          "$ref": "#/channels/streamer-finance-yahoo-com/messages/subscribe"
+        },
+        {
+          "$ref": "#/channels/streamer-finance-yahoo-com/messages/unsubscribe"
+        }
+      ]
+    }
+  },
+  "components": {
+    "schemas": {
+      "Pricing": {
+        "type": "object",
+        "required": [
+          "type",
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "examples": [
+              "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I1sW3AmWAMyNAsAFk2AEE",
+              "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I9MW3AmWAMyNA2AEE",
+              "CgRBQVBMFYaQnkMY0NG+iYloKgNOTVMwCDgBRRhxTz9ImMu3AmWAJCNA2AEE"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "examples": [
+              "pricing"
+            ]
+          }
+        }
+      },
+      "Subscribe": {
+        "type": "object",
+        "required": [
+          "subscribe"
+        ],
+        "properties": {
+          "subscribe": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "examples": [
+                "AAPL",
+                "NVDA260828C00230000",
+                "NVDA260828C00225000"
+              ]
+            }
+          }
+        }
+      },
+      "Unsubscribe": {
+        "type": "object",
+        "required": [
+          "unsubscribe"
+        ],
+        "properties": {
+          "unsubscribe": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "examples": [
+                "AAPL",
+                "NVDA260828C00230000",
+                "NVDA260828C00225000"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

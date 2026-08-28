@@ -19,9 +19,20 @@ func LoadFromFile(name string) (Sessions, error) {
 		return nil, err
 	}
 
+	ss, err := ParseSessions(data)
+	if err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", name, err)
+	}
+
+	return ss, nil
+}
+
+// ParseSessions parses a sessions file already read into memory — from an
+// embedded filesystem, say, where [LoadFromFile] cannot reach.
+func ParseSessions(data []byte) (Sessions, error) {
 	var ss Sessions
 	if err := json.Unmarshal(data, &ss); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", name, err)
+		return nil, err
 	}
 
 	return ss, nil

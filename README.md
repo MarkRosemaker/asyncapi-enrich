@@ -14,8 +14,8 @@
 observed traffic, the way
 [`openapi-enrich`](https://github.com/MarkRosemaker/openapi-enrich) does for HTTP.
 
-> **Status: early.** Recording works and is tested end to end. Inferring the
-> specification from a recording is next.
+> **Status: early, but complete end to end.** Recording and enrichment both work
+> and are tested — including on real captures against Finnhub and Yahoo Finance.
 
 ## The workflow
 
@@ -132,6 +132,57 @@ authored, and recorded again from scratch.
 Every frame is written to the file as it arrives, not only once recording
 finishes, so a crash mid-run loses at most the one frame in flight.
 
+## Enriching
+
+```bash
+go get -tool github.com/MarkRosemaker/asyncapi-enrich/cmd/asyncapi-enrich
+```
+
+```bash
+asyncapi-enrich -spec api/asyncapi.json -sessions api/sessions.json
+```
+
+This is the half that needs no network, split out from recording for the same
+reason recording was split out from everything else: the machine that captured
+the traffic is not necessarily the machine — or the moment — you write the spec
+on. If `api/asyncapi.json` does not exist yet, it starts from
+[`enrich.NewDocument`](https://pkg.go.dev/github.com/MarkRosemaker/asyncapi-enrich#NewDocument),
+a minimal valid AsyncAPI 3.1 document, the same way `openapi-enrich` does.
+
+For every session, it adds a server for the URI's host, one channel on that
+server — every WebSocket API recorded so far multiplexes all of its messages
+over a single connection, so there is no per-topic address to key more than one
+channel by — a `send` and a `receive` operation, and a message with an inferred
+payload schema for each distinct kind of frame observed. A frame's kind comes
+from a top-level `type` field when it has one (Finnhub's `{"type": "trade", ...}`);
+failing that, from its one top-level key when it has exactly one (Yahoo's
+`{"subscribe": [...]}`, which has no `type` at all); failing that, every frame
+going the same direction collapses into one message named after that
+direction — an honest "we don't know how to tell these apart," not a guess.
+
+A query parameter that looks like a credential — the same field names
+[masking](#masking) checks against — becomes an `httpApiKey` security scheme
+named after it, referenced from the server: the credential the recorder found
+in Finnhub's URI is what tells enrichment the API needs one, and under what name.
+
+Running it again — after a longer recording, or a second one against a
+different symbol — extends what is already there instead of duplicating it: a
+server, channel, message, or schema enrichment already produced is found and
+merged into, not recreated. That merge is where the tool earns its keep. A
+schema starts out requiring every field the one sample it came from happened to
+carry; the moment a second sample is merged in without one of those fields,
+that field stops being required. No single recording can tell "always present"
+from "just happened to be there this time" apart — only merging across more
+than one can, which is the reason two recordings beat one no matter how long
+either of them ran.
+
+AsyncAPI's schema is JSON Schema, whose `type` keyword is natively a list, so a
+field seen as both a real value and `null` merges into an honest union —
+`["number", "null"]` — rather than needing the workarounds OpenAPI 3.0 schemas
+required (see `merge.go`'s doc comment for how this compares to
+[`openapi-merge`](https://github.com/MarkRosemaker/openapi-merge), which this
+package deliberately does not depend on).
+
 ## Masking
 
 Every frame is masked before it reaches disk — as it is captured, not once at
@@ -166,7 +217,10 @@ where masking headers and bodies never reaches it.
 
 | Package | Purpose |
 |---|---|
+| [`github.com/MarkRosemaker/asyncapi`](https://github.com/MarkRosemaker/asyncapi) | AsyncAPI 3.x data structures |
 | [`github.com/gorilla/websocket`](https://github.com/gorilla/websocket) | The WebSocket client used to record |
+| [`github.com/go-api-libs/types`](https://github.com/go-api-libs/types) | Email format validation, for string format detection |
+| [`github.com/google/uuid`](https://github.com/google/uuid) | UUID format detection |
 
 ## Contributing
 
