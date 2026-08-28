@@ -51,12 +51,31 @@ and recording fills in the rest:
       {"at": "1.08s", "receive": {"type": "ping"}}
 ```
 
+Only a receive frame gets an `at`. A send frame is exactly what you authored —
+its timing is an artefact of our own scheduling, not something the server did,
+so there is nothing there worth recording.
+
 A session holds only what is needed to open a connection and what crossed it.
 Everything else — what the server is called, what the messages mean, why the
 session exists — belongs in the AsyncAPI document, which is the artefact this
 file is here to improve. The stop condition is not in the file either: it is what
 you asked the recorder for, not something the server did, so it lives on the
 command line.
+
+You can also author an `unsubscribe`, sent right before the connection closes —
+the natural end of a session, symmetric to the frames it opened with:
+
+```json
+{
+  "uri": "wss://ws.finnhub.io?token=$FINNHUB_API_KEY",
+  "frames": [{"send": {"type": "subscribe", "symbol": "AAPL"}}],
+  "unsubscribe": {"type": "unsubscribe", "symbol": "AAPL"}
+}
+```
+
+Recording always ends with the real WebSocket closing handshake
+([RFC 6455 §7.1.1](https://www.rfc-editor.org/rfc/rfc6455#section-7.1.1)) rather
+than just cutting the connection, whether or not a session has one of these.
 
 The URI is what the specification is enriched from, the same way `openapi-enrich`
 enriches from a recorded request URL: the scheme gives the server's `protocol`,
@@ -95,11 +114,31 @@ keep the credential out of shell history — and the URI is written back **exact
 as authored**, so the reference survives and the expansion never reaches disk. A
 URI that carries a credential outright instead is masked on the way out.
 
+Every session in the file records at once — one session waiting on a quiet feed
+does not hold up another. A session whose existing frames already satisfy the
+stop condition is left alone and dials nothing, so rerunning a recording that
+already succeeded costs nothing:
+
+```
+$ asyncapi-record -f testdata/finnhub/api/sessions.json -kinds trade=2,ping=1 -timeout 60s
+sessions[0]: already complete, skipped — 12 received (ping=1, trade=11)
+```
+
+A session that falls short of a stricter condition than last time — `-messages 5`
+where only 3 were captured before, say — is not extended. What it had came from a
+different connection with its own clock; it is discarded, keeping only what was
+authored, and recorded again from scratch.
+
+Every frame is written to the file as it arrives, not only once recording
+finishes, so a crash mid-run loses at most the one frame in flight.
+
 ## Masking
 
-Every frame is masked before it reaches disk, never after. There is no option to
-turn it off, because there is no good reason to want one — a credential committed
-to a public specification repository is a credential to rotate.
+Every frame is masked before it reaches disk — as it is captured, not once at
+the end, so an incremental save mid-recording never writes a secret either.
+There is no option to turn masking off, because there is no good reason to want
+one — a credential committed to a public specification repository is a
+credential to rotate.
 
 Values are replaced by field name, at any depth, case-insensitively and ignoring
 separators, so `api_key`, `apiKey` and `API-KEY` are one name. A field whose value

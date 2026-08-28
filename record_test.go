@@ -3,6 +3,8 @@ package enrich_test
 import (
 	"context"
 	"encoding/json/jsontext"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -114,12 +116,17 @@ func TestRecordSession(t *testing.T) {
 		t.Errorf("the server received %s, want %s", got, want)
 	}
 
-	// The send frame comes first, then everything that came back, in order.
-	want := []struct{ at, send, receive string }{
-		{at: "100ms", send: `{"type":"subscribe","symbol":"AAPL"}`},
-		{at: "200ms", receive: `{"type":"trade","data":[{"s":"AAPL","p":190.5}]}`},
-		{at: "300ms", receive: `{"type":"ping"}`},
-		{at: "400ms", receive: `{"type":"trade","data":[{"s":"AAPL","p":190.6}]}`},
+	// The send frame comes first, exactly as authored — no "at": it is not
+	// something the server did — then everything that came back, in order.
+	want := []struct {
+		zeroAt        bool
+		at            string
+		send, receive string
+	}{
+		{zeroAt: true, send: `{"type":"subscribe","symbol":"AAPL"}`},
+		{at: "100ms", receive: `{"type":"trade","data":[{"s":"AAPL","p":190.5}]}`},
+		{at: "200ms", receive: `{"type":"ping"}`},
+		{at: "300ms", receive: `{"type":"trade","data":[{"s":"AAPL","p":190.6}]}`},
 	}
 
 	if len(s.Frames) != len(want) {
@@ -129,7 +136,11 @@ func TestRecordSession(t *testing.T) {
 	for i, w := range want {
 		f := s.Frames[i]
 
-		if f.At.String() != w.at {
+		if w.zeroAt {
+			if !f.At.IsZero() {
+				t.Errorf("frames[%d].at: got %s, want unset", i, f.At)
+			}
+		} else if f.At.String() != w.at {
 			t.Errorf("frames[%d].at: got %s, want %s", i, f.At, w.at)
 		}
 
@@ -302,5 +313,251 @@ func TestRecordNoURI(t *testing.T) {
 
 	if want := "uri is required"; err.Error() != want {
 		t.Errorf("got %q, want %q", err, want)
+	}
+}
+
+// TestRecordSkipsAlreadySatisfied checks the resumability guarantee: a session
+// whose existing frames already meet the stop condition is not dialled again.
+// The dialer here fails any call, so a dial happening at all fails the test.
+func TestRecordSkipsAlreadySatisfied(t *testing.T) {
+	s := &enrich.Session{
+		URI: "ws://should-not-be-dialled.invalid",
+		Frames: []*enrich.Frame{
+			{Send: jsontext.Value(`{"type":"subscribe","symbol":"AAPL"}`)},
+			{At: enrich.NewDuration(100 * time.Millisecond), Receive: jsontext.Value(`{"type":"trade"}`)},
+			{At: enrich.NewDuration(200 * time.Millisecond), Receive: jsontext.Value(`{"type":"trade"}`)},
+		},
+	}
+
+	r := &enrich.Recorder{
+		Until: &enrich.Until{
+			Timeout:       10 * time.Second,
+			Discriminator: "type",
+			Kinds:         map[string]int{"trade": 2},
+		},
+		Dialer: &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			t.Fatal("dialled a session that was already complete")
+
+			return nil, nil
+		}},
+	}
+
+	sr, err := r.Session(context.Background(), s)
+	if err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+
+	if !sr.Skipped {
+		t.Error("got Skipped = false, want true")
+	}
+
+	if want := "already complete, skipped — 2 received (trade=2)"; sr.String() != want {
+		t.Errorf("got %q, want %q", sr, want)
+	}
+}
+
+// TestRecordRestartsWhenIncomplete checks the other half of resumability: a
+// session that falls short of a new, stricter condition is recorded again from
+// scratch, rather than trying to extend what it already had.
+func TestRecordRestartsWhenIncomplete(t *testing.T) {
+	uri := serve(t, func(conn *websocket.Conn) {
+		writeAll(t, conn, `{"type":"trade"}`, `{"type":"trade"}`, `{"type":"trade"}`)
+	})
+
+	s := &enrich.Session{
+		URI: uri,
+		Frames: []*enrich.Frame{
+			{Send: jsontext.Value(`{"type":"subscribe","symbol":"AAPL"}`)},
+			// Only one trade was captured last time — asking for three now
+			// cannot be satisfied by extending this, since it is not the
+			// connection that is about to be opened.
+			{At: enrich.NewDuration(50 * time.Millisecond), Receive: jsontext.Value(`{"type":"trade"}`)},
+		},
+	}
+
+	r := &enrich.Recorder{Until: &enrich.Until{
+		Timeout:       10 * time.Second,
+		Discriminator: "type",
+		Kinds:         map[string]int{"trade": 3},
+	}}
+
+	sr, err := r.Session(context.Background(), s)
+	if err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+
+	if sr.Skipped {
+		t.Error("got Skipped = true, want false")
+	}
+
+	if got := sr.Seen["trade"]; got != 3 {
+		t.Errorf("got %d trades, want 3", got)
+	}
+
+	// Exactly one send frame, exactly the authored one — the stale receive
+	// from before is gone, not appended to.
+	sends := 0
+
+	for _, f := range s.Frames {
+		if len(f.Send) > 0 {
+			sends++
+		}
+	}
+
+	if sends != 1 {
+		t.Errorf("got %d send frames, want 1", sends)
+	}
+}
+
+// TestRecordParallel checks that sessions record concurrently rather than one
+// after another: two servers each hold their connection open until both have
+// connected, which only both closing in time proves happened at once.
+func TestRecordParallel(t *testing.T) {
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	block := func(conn *websocket.Conn) {
+		wg.Done()
+		wg.Wait() // blocks forever if the other session has not also connected
+
+		writeAll(t, conn, `{"ok":true}`)
+	}
+
+	uriA, uriB := serve(t, block), serve(t, block)
+
+	ss := enrich.Sessions{{URI: uriA}, {URI: uriB}}
+
+	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 2 * time.Second, Messages: 1}}
+
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := r.Record(context.Background(), ss)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("recording: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out — the sessions were not recorded concurrently")
+	}
+}
+
+// TestRecordSave checks that every captured frame is persisted as it arrives,
+// not only once recording finishes — so a crash mid-run loses at most one frame.
+func TestRecordSave(t *testing.T) {
+	uri := serve(t, func(conn *websocket.Conn) {
+		writeAll(t, conn, `{"type":"trade"}`, `{"type":"trade"}`)
+	})
+
+	s := &enrich.Session{URI: uri}
+	ss := enrich.Sessions{s}
+
+	var saves []int // the frame count at each save, to see it grow one at a time
+
+	var mu sync.Mutex
+
+	r := &enrich.Recorder{
+		Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 2},
+		Save: func(got enrich.Sessions) error {
+			mu.Lock()
+			defer mu.Unlock()
+
+			saves = append(saves, len(got[0].Frames))
+
+			return nil
+		},
+	}
+
+	if _, err := r.Record(context.Background(), ss); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+
+	if len(saves) < 2 {
+		t.Fatalf("got %d saves, want at least 2 — one per received frame", len(saves))
+	}
+
+	for i := 1; i < len(saves); i++ {
+		if saves[i] < saves[i-1] {
+			t.Errorf("save %d saw %d frames after save %d saw %d — went backwards", i, saves[i], i-1, saves[i-1])
+		}
+	}
+}
+
+// TestRecordUnsubscribeAndClose checks that an authored Unsubscribe frame is
+// sent, and that the connection ends with a real WebSocket close handshake
+// (RFC 6455 §7.1.1) rather than being cut.
+func TestRecordUnsubscribeAndClose(t *testing.T) {
+	var (
+		gotUnsubscribe string
+		gotCloseCode   int
+	)
+
+	serverDone := make(chan struct{})
+
+	uri := serve(t, func(conn *websocket.Conn) {
+		defer close(serverDone)
+
+		writeAll(t, conn, `{"type":"trade"}`)
+
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Errorf("reading the unsubscribe: %v", err)
+
+			return
+		}
+
+		gotUnsubscribe = string(data)
+
+		_, _, err = conn.ReadMessage()
+
+		var ce *websocket.CloseError
+		if ok := errors.As(err, &ce); !ok {
+			t.Errorf("got %v, want a close error", err)
+
+			return
+		}
+
+		gotCloseCode = ce.Code
+	})
+
+	s := &enrich.Session{
+		URI:         uri,
+		Unsubscribe: jsontext.Value(`{"type":"unsubscribe","symbol":"AAPL"}`),
+	}
+
+	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
+
+	sr, err := r.Session(context.Background(), s)
+	if err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+
+	select {
+	case <-serverDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the server never observed the close handshake")
+	}
+
+	if !sr.Complete() {
+		t.Fatalf("the session did not meet its condition: %s", sr)
+	}
+
+	if want := `{"type":"unsubscribe","symbol":"AAPL"}`; gotUnsubscribe != want {
+		t.Errorf("got %s, want %s", gotUnsubscribe, want)
+	}
+
+	if gotCloseCode != websocket.CloseNormalClosure {
+		t.Errorf("got close code %d, want %d", gotCloseCode, websocket.CloseNormalClosure)
+	}
+
+	// The unsubscribe is itself a send frame, recorded like any other.
+	last := s.Frames[len(s.Frames)-1]
+	if string(last.Send) != string(s.Unsubscribe) {
+		t.Errorf("the unsubscribe frame was not recorded: %+v", last)
 	}
 }

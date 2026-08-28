@@ -40,9 +40,11 @@ var defaultMaskedFields = []string{
 
 // Masker replaces the values of fields whose names look like credentials.
 //
-// It runs before anything is written to disk, never after. A recording that
-// reaches a file unmasked has already leaked: a specification repository is
-// public, and a credential committed to one is a credential to rotate.
+// It runs before anything is written to disk, never after — including every
+// incremental write while a session is still being recorded, not just the
+// final one. A recording that reaches a file unmasked has already leaked: a
+// specification repository is public, and a credential committed to one is a
+// credential to rotate.
 type Masker struct {
 	// fields are the normalized names to mask.
 	fields []string
@@ -133,6 +135,25 @@ func (m *Masker) URL(u *url.URL) *url.URL {
 	return &out
 }
 
+// MaskURI parses uri, masks it the way [Masker.URL] does, and returns the
+// result as a string. A uri that fails to parse is returned unchanged rather
+// than dropped — an unparsable URI is a validation problem, not a secret to
+// hide, and [Session.Validate] is what catches it.
+func (m *Masker) MaskURI(uri string) string {
+	u, err := url.Parse(uri)
+	if err != nil {
+		return uri
+	}
+
+	return m.URL(u).String()
+}
+
+// isEnvRef reports whether a value is a reference to an environment variable,
+// e.g. "$FINNHUB_API_KEY" or "${FINNHUB_API_KEY}", rather than a secret itself.
+func isEnvRef(v string) bool {
+	return strings.HasPrefix(v, "$")
+}
+
 // Value returns the payload with the value of every field that looks like a
 // credential replaced, at any depth. The order of the remaining fields is kept,
 // so a masked recording still reads like what came off the wire.
@@ -221,27 +242,17 @@ func (s stack) setExpectName(v bool) {
 	}
 }
 
-// isEnvRef reports whether a value is a reference to an environment variable,
-// e.g. "$FINNHUB_API_KEY" or "${FINNHUB_API_KEY}", rather than a secret itself.
-func isEnvRef(v string) bool {
-	return strings.HasPrefix(v, "$")
-}
-
-// Session masks a session's URI and every one of its frames, in place.
-func (m *Masker) Session(s *Session) error {
-	if u, err := url.Parse(s.URI); err == nil {
-		s.URI = m.URL(u).String()
-	}
-
-	for _, f := range s.Frames {
-		for _, p := range []*jsontext.Value{&f.Send, &f.Receive} {
-			masked, err := m.Value(*p)
-			if err != nil {
-				return err
-			}
-
-			*p = masked
+// Frame masks a single frame's Send and Receive payloads in place. It is called
+// on every frame as it is captured, not once at the end, so that an incremental
+// save mid-recording never writes a secret to disk even for a moment.
+func (m *Masker) Frame(f *Frame) error {
+	for _, p := range []*jsontext.Value{&f.Send, &f.Receive} {
+		masked, err := m.Value(*p)
+		if err != nil {
+			return err
 		}
+
+		*p = masked
 	}
 
 	return nil

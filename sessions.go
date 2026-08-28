@@ -38,6 +38,13 @@ type Session struct {
 	URI string `json:"uri"`
 	// Frames are the messages of this session, in the order they crossed the wire.
 	Frames []*Frame `json:"frames"`
+	// Unsubscribe, if set, is sent right before the connection closes — the
+	// natural end of a session, symmetric to the subscribe frames it opened
+	// with. You author this; it is sent once recording stops, whether the stop
+	// condition was met or the timeout ran out, as long as the connection is
+	// still open. The closing handshake (RFC 6455 §7.1.1) happens either way,
+	// with or without one.
+	Unsubscribe jsontext.Value `json:"unsubscribe,omitempty"`
 }
 
 // Frame is a single message, in one direction.

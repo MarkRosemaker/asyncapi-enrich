@@ -13,10 +13,13 @@
 //
 // # Recording
 //
-// You author a session's send frames and its [Until] condition. [Record] dials the
-// server, plays the send frames in order, and appends every frame that arrives until
-// the condition is met or the timeout expires. It writes back the same file with the
-// received frames and their arrival times filled in.
+// You author a session's URI, its send frames, and optionally an [Session.Unsubscribe]
+// frame. [Recorder.Record] dials every session in a file concurrently, plays each
+// one's send frames in order, and commits every frame that arrives — masked, and
+// saved to disk — until [Recorder.Until] is met or its timeout expires, then performs
+// the WebSocket closing handshake. A session whose existing frames already satisfy
+// [Recorder.Until] is left alone and reported as skipped, so a rerun after a
+// successful capture costs nothing.
 //
 // A session names its server by key rather than by URL, so the credentials used to dial
 // never enter the recording. What a server puts inside a payload is a different matter,

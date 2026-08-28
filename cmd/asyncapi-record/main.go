@@ -10,7 +10,15 @@
 // A session's URI may refer to environment variables, which are expanded here
 // rather than by the shell, so that the credential stays out of shell history.
 // The expansion is used to dial and goes no further: the URI is written back
-// exactly as it was authored, and every frame is masked before it reaches disk.
+// exactly as it was authored, and every frame is masked before it reaches disk
+// — as it is captured, not once at the end, so a crash mid-run never leaves a
+// secret sitting on disk either.
+//
+// Every session in the file records concurrently. A session whose existing
+// frames already satisfy the stop condition is left alone: rerunning after a
+// successful capture costs nothing and dials nothing. One that falls short is
+// recorded again from scratch — what it had came from a different connection
+// with its own clock, so it cannot simply be extended.
 package main
 
 import (
@@ -86,10 +94,16 @@ func run() error {
 			Discriminator: *discrim,
 			Kinds:         ks,
 		},
+		// Every frame is written to disk as it is captured, so a crash loses at
+		// most the one frame in flight rather than the whole run.
+		Save: func(ss enrich.Sessions) error { return ss.WriteToFile(*file) },
 	}
 
 	rep, recErr := rec.Record(ctx, ss)
 
+	// Sessions record concurrently and each already saved itself as it went, but
+	// one more write here is cheap insurance — it also covers a run where every
+	// session was already complete and Save was never called at all.
 	if err := ss.WriteToFile(*file); err != nil {
 		return err
 	}

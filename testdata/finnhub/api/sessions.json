@@ -3,7 +3,6 @@
     "uri": "wss://ws.finnhub.io?token=$FINNHUB_API_KEY",
     "frames": [
       {
-        "at": "87.25µs",
         "send": {
           "type": "subscribe",
           "symbol": "AAPL"
@@ -617,6 +616,10 @@
           "type": "ping"
         }
       }
-    ]
+    ],
+    "unsubscribe": {
+      "type": "unsubscribe",
+      "symbol": "AAPL"
+    }
   }
 ]

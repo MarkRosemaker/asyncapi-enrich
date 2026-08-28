@@ -20,6 +20,10 @@ type Report struct {
 
 // SessionReport says what one session observed.
 type SessionReport struct {
+	// Skipped is true when the session's existing frames already satisfied the
+	// stop condition, so it was not dialled at all. A rerun of a recording that
+	// already succeeded costs nothing.
+	Skipped bool
 	// Received is how many frames came back.
 	Received int
 	// Seen counts the frames of each kind, by the value of the discriminator.
@@ -90,6 +94,10 @@ func (r *Report) String() string {
 // String summarises what the session observed.
 func (sr *SessionReport) String() string {
 	var b strings.Builder
+
+	if sr.Skipped {
+		b.WriteString("already complete, skipped — ")
+	}
 
 	fmt.Fprintf(&b, "%d received", sr.Received)
 

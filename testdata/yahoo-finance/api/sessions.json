@@ -3,7 +3,6 @@
     "uri": "wss://streamer.finance.yahoo.com/?version=2",
     "frames": [
       {
-        "at": "53.458µs",
         "send": {
           "subscribe": [
             "AAPL"
@@ -45,13 +44,17 @@
           "message": "CgRBQVBMFQCQnkMY8PC+iYloKgNOTVMwCDgBRecbTz9I9ta3AmWA4SJAsAHIAdgBBA=="
         }
       }
-    ]
+    ],
+    "unsubscribe": {
+      "unsubscribe": [
+        "AAPL"
+      ]
+    }
   },
   {
     "uri": "wss://streamer.finance.yahoo.com/?version=2",
     "frames": [
       {
-        "at": "64.208µs",
         "send": {
           "subscribe": [
             "NVDA260828C00230000",
@@ -96,6 +99,14 @@
           "message": "ChNOVkRBMjYwODI4QzAwMjI3NTAwFVyPoj8YwKiIiYloKgNPUFIwDTgBRcf2I8JIshtlxPVov5IBBE5WREGwAQK9AVyPoj/NAWZmpj/YAQg="
         }
       }
-    ]
+    ],
+    "unsubscribe": {
+      "unsubscribe": [
+        "NVDA260828C00230000",
+        "NVDA260828C00225000",
+        "NVDA260828P00225000",
+        "NVDA260828C00227500"
+      ]
+    }
   }
 ]
