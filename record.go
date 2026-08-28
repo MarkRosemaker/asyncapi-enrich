@@ -2,31 +2,23 @@ package enrich
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-// ErrNoServer is returned when a session names a server the recorder was not
-// given a URL for.
-var ErrNoServer = errors.New("no URL for server")
-
 // Recorder plays sessions against real servers and fills in what comes back.
 type Recorder struct {
-	// REQUIRED. URLs maps the server key a session names to the URL to dial.
-	//
-	// The caller builds these, which is where a credential is read from the
-	// environment and put into the URL. It goes no further than the dial: what is
-	// written back is the session, which names the server by key.
-	URLs map[string]string
-	// Mask is applied to every frame before it is kept. A nil Mask means the
-	// default masker, not no masking — there is no way to ask for none, because
-	// there is no good reason to want one.
+	// REQUIRED. Until says when each session stops listening.
+	Until *Until
+	// Mask is applied to every URI and frame before it is kept. A nil Mask means
+	// the default masker, not no masking — there is no way to ask for none,
+	// because there is no good reason to want one.
 	Mask *Masker
 	// Dialer connects to the server. The zero value means
 	// [websocket.DefaultDialer].
@@ -35,23 +27,23 @@ type Recorder struct {
 	Now func() time.Time
 }
 
-// Record plays every session of ixs and fills in the frames that came back.
+// Record plays every session and fills in the frames that came back.
 //
 // It returns the first error that stopped a session from being recorded. A stop
 // condition that was not met is not one of those: a feed that never sent the
 // message you were waiting for is an answer about the feed, and is reported in
 // the returned [Report] instead.
-func (r *Recorder) Record(ctx context.Context, ixs *Interactions) (*Report, error) {
-	if err := ixs.Validate(); err != nil {
+func (r *Recorder) Record(ctx context.Context, ss Sessions) (*Report, error) {
+	if err := ss.Validate(); err != nil {
 		return nil, err
 	}
 
-	rep := &Report{Sessions: make([]*SessionReport, 0, len(ixs.Sessions))}
+	rep := &Report{Sessions: make([]*SessionReport, 0, len(ss))}
 
-	for i, s := range ixs.Sessions {
+	for i, s := range ss {
 		sr, err := r.Session(ctx, s)
 		if err != nil {
-			return nil, fmt.Errorf("sessions[%d]: %w", i, err)
+			return nil, fmt.Errorf("[%d]: %w", i, err)
 		}
 
 		rep.Sessions = append(rep.Sessions, sr)
@@ -61,21 +53,27 @@ func (r *Recorder) Record(ctx context.Context, ixs *Interactions) (*Report, erro
 }
 
 // Session plays one session and replaces its frames with what actually crossed
-// the wire: the frames that were sent, in order, interleaved with the ones that
-// came back, each stamped with how long after connecting it arrived.
+// the wire: the frames that were sent, in order, followed by the ones that came
+// back, each stamped with how long after connecting it arrived.
+//
+// The session's URI is written back exactly as it was authored, so a reference
+// to an environment variable survives and a literal credential does not.
 func (r *Recorder) Session(ctx context.Context, s *Session) (*SessionReport, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
 
-	rawURL, ok := r.URLs[s.Server]
-	if !ok {
-		return nil, fmt.Errorf("%w %q", ErrNoServer, s.Server)
+	if r.Until == nil {
+		return nil, ErrNoTimeout
 	}
 
-	u, err := url.Parse(rawURL)
+	if err := r.Until.Validate(); err != nil {
+		return nil, err
+	}
+
+	u, err := s.dial()
 	if err != nil {
-		return nil, fmt.Errorf("parsing the URL of server %q: %w", s.Server, err)
+		return nil, err
 	}
 
 	mask := r.Mask
@@ -88,7 +86,7 @@ func (r *Recorder) Session(ctx context.Context, s *Session) (*SessionReport, err
 		now = time.Now
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, s.Until.Timeout.Duration())
+	ctx, cancel := context.WithTimeout(ctx, r.Until.Timeout)
 	defer cancel()
 
 	dialer := r.Dialer
@@ -98,7 +96,7 @@ func (r *Recorder) Session(ctx context.Context, s *Session) (*SessionReport, err
 
 	conn, _, err := dialer.DialContext(ctx, u.String(), nil)
 	if err != nil {
-		// The URL is masked before it reaches an error a caller might log.
+		// The URI is masked before it reaches an error a caller might log.
 		return nil, fmt.Errorf("dialing %s: %w", mask.URL(u), err)
 	}
 	defer conn.Close()
@@ -118,13 +116,12 @@ func (r *Recorder) Session(ctx context.Context, s *Session) (*SessionReport, err
 		})
 	}
 
-	received, sr, err := r.listen(ctx, conn, s.Until, start, now)
+	received, sr, err := r.listen(ctx, conn, start, now)
 	if err != nil {
 		return nil, err
 	}
 
 	s.Frames = append(frames, received...)
-	s.RecordedAt = start.UTC().Truncate(time.Second)
 
 	if err := mask.Session(s); err != nil {
 		return nil, fmt.Errorf("masking: %w", err)
@@ -135,8 +132,7 @@ func (r *Recorder) Session(ctx context.Context, s *Session) (*SessionReport, err
 
 // listen reads frames until the stop condition is met or the context is done.
 func (r *Recorder) listen(
-	ctx context.Context, conn *websocket.Conn, until *Until,
-	start time.Time, now func() time.Time,
+	ctx context.Context, conn *websocket.Conn, start time.Time, now func() time.Time,
 ) ([]*Frame, *SessionReport, error) {
 	if dl, ok := ctx.Deadline(); ok {
 		if err := conn.SetReadDeadline(dl); err != nil {
@@ -144,10 +140,16 @@ func (r *Recorder) listen(
 		}
 	}
 
-	frames := []*Frame{}
-	seen := map[string]int{}
+	var (
+		frames   = []*Frame{}
+		seen     = map[string]int{}
+		notJSON  int
+		until    = r.Until
+		discrim  = until.Discriminator
+		maxFrame = func() bool { return until.satisfied(len(frames), seen) }
+	)
 
-	for !satisfied(until, len(frames), seen) {
+	for !maxFrame() {
 		if err := ctx.Err(); err != nil {
 			break
 		}
@@ -162,47 +164,55 @@ func (r *Recorder) listen(
 			return nil, nil, fmt.Errorf("reading: %w", err)
 		}
 
-		if tp != websocket.TextMessage {
-			// Binary frames are a different problem — a payload that is not JSON
-			// needs a schema format that says what it is instead.
-			return nil, nil, fmt.Errorf("received a message of type %d, want text", tp)
-		}
-
-		v := jsontext.Value(data)
-		if err := v.Compact(); err != nil {
-			return nil, nil, fmt.Errorf("received a message that is not JSON: %w", err)
+		v, ok := payload(tp, data)
+		if !ok {
+			notJSON++
 		}
 
 		frames = append(frames, &Frame{At: NewDuration(now().Sub(start)), Receive: v})
 
-		if until.Discriminator != "" {
-			if kind, ok := discriminate(v, until.Discriminator); ok {
+		if discrim != "" {
+			if kind, ok := discriminate(v, discrim); ok {
 				seen[kind]++
 			}
 		}
 	}
 
-	return frames, newSessionReport(until, len(frames), seen), nil
+	sr := newSessionReport(until, len(frames), seen)
+	sr.NotJSON = notJSON
+
+	return frames, sr, nil
 }
 
-// satisfied reports whether every condition that was set has been met.
-func satisfied(until *Until, count int, seen map[string]int) bool {
-	if until.Messages == 0 && len(until.Kinds) == 0 {
-		// Nothing was asked for beyond the timeout, so only the timeout ends it.
-		return false
-	}
-
-	if count < until.Messages {
-		return false
-	}
-
-	for kind, want := range until.Kinds {
-		if seen[kind] < want {
-			return false
+// payload turns a frame off the wire into something an interactions file can
+// hold, and reports whether it was JSON to begin with.
+//
+// A text frame that is JSON is kept as it came. Anything else — plain text, or
+// the base64 of a binary frame — is kept as a JSON string. Nothing is dropped:
+// a feed that does not answer in JSON is still a feed worth recording, and
+// guessing at an encoding here would put invention into the evidence.
+func payload(messageType int, data []byte) (jsontext.Value, bool) {
+	if messageType == websocket.TextMessage {
+		v := jsontext.Value(data)
+		if err := v.Compact(); err == nil {
+			return v, true
 		}
+
+		return quote(string(data)), false
 	}
 
-	return true
+	return quote(base64.StdEncoding.EncodeToString(data)), false
+}
+
+// quote returns s as a JSON string.
+func quote(s string) jsontext.Value {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// A Go string always marshals.
+		panic(err)
+	}
+
+	return b
 }
 
 // discriminate returns the value of the named top-level field of a payload, if

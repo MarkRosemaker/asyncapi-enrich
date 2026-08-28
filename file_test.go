@@ -8,11 +8,11 @@ import (
 	enrich "github.com/MarkRosemaker/asyncapi-enrich"
 )
 
-// TestLoadFixtures checks that every hand-authored interactions file is one the
+// TestLoadFixtures checks that every hand-authored sessions file is one the
 // recorder would accept, so that a typo is found before a session is dialled
 // rather than after.
 func TestLoadFixtures(t *testing.T) {
-	paths, err := filepath.Glob("testdata/*/api/interactions.json")
+	paths, err := filepath.Glob("testdata/*/api/sessions.json")
 	if err != nil {
 		t.Fatalf("globbing: %v", err)
 	}
@@ -23,19 +23,19 @@ func TestLoadFixtures(t *testing.T) {
 
 	for _, path := range paths {
 		t.Run(filepath.Base(filepath.Dir(filepath.Dir(path))), func(t *testing.T) {
-			ixs, err := enrich.LoadFromFile(path)
+			ss, err := enrich.LoadFromFile(path)
 			if err != nil {
 				t.Fatalf("loading: %v", err)
 			}
 
-			if err := ixs.Validate(); err != nil {
+			if err := ss.Validate(); err != nil {
 				t.Fatalf("validating: %v", err)
 			}
 
 			// The file is written back the way it is authored, so that recording
 			// shows up as a diff of the frames that arrived and nothing else.
-			out := filepath.Join(t.TempDir(), "interactions.json")
-			if err := ixs.WriteToFile(out); err != nil {
+			out := filepath.Join(t.TempDir(), "sessions.json")
+			if err := ss.WriteToFile(out); err != nil {
 				t.Fatalf("writing: %v", err)
 			}
 

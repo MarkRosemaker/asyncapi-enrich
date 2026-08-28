@@ -19,7 +19,7 @@ import (
 func stepClock(step time.Duration) func() time.Time {
 	var (
 		mu sync.Mutex
-		t  = time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+		t  = time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
 	)
 
 	return func() time.Time {
@@ -56,55 +56,53 @@ func serve(t *testing.T, fn func(*websocket.Conn)) string {
 	return "ws" + strings.TrimPrefix(srv.URL, "http")
 }
 
-// readOne reads a single message and reports what it was, so that a test can
-// assert the server actually received what the session said to send.
-func readOne(t *testing.T, conn *websocket.Conn) string {
+// writeAll sends each message as a text frame.
+func writeAll(t *testing.T, conn *websocket.Conn, msgs ...string) {
 	t.Helper()
 
-	_, data, err := conn.ReadMessage()
-	if err != nil {
-		t.Errorf("reading: %v", err)
+	for _, msg := range msgs {
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			t.Errorf("writing: %v", err)
 
-		return ""
+			return
+		}
 	}
-
-	return string(data)
 }
 
 func TestRecordSession(t *testing.T) {
 	var got string
 
-	url := serve(t, func(conn *websocket.Conn) {
-		got = readOne(t, conn)
+	uri := serve(t, func(conn *websocket.Conn) {
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			t.Errorf("reading: %v", err)
 
-		for _, msg := range []string{
+			return
+		}
+
+		got = string(data)
+
+		writeAll(t, conn,
 			`{"type":"trade","data":[{"s":"AAPL","p":190.5}]}`,
 			`{"type":"ping"}`,
 			`{"type":"trade","data":[{"s":"AAPL","p":190.6}]}`,
-		} {
-			if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-				t.Errorf("writing: %v", err)
-
-				return
-			}
-		}
+		)
 	})
 
 	s := &enrich.Session{
-		Server: "production",
-		Until: &enrich.Until{
-			Timeout:       enrich.NewDuration(10 * time.Second),
-			Discriminator: "type",
-			Kinds:         map[string]int{"trade": 2, "ping": 1},
-		},
+		URI: uri,
 		Frames: []*enrich.Frame{
 			{Send: jsontext.Value(`{"type":"subscribe","symbol":"AAPL"}`)},
 		},
 	}
 
 	r := &enrich.Recorder{
-		URLs: map[string]string{"production": url},
-		Now:  stepClock(100 * time.Millisecond),
+		Until: &enrich.Until{
+			Timeout:       10 * time.Second,
+			Discriminator: "type",
+			Kinds:         map[string]int{"trade": 2, "ping": 1},
+		},
+		Now: stepClock(100 * time.Millisecond),
 	}
 
 	sr, err := r.Session(context.Background(), s)
@@ -117,11 +115,7 @@ func TestRecordSession(t *testing.T) {
 	}
 
 	// The send frame comes first, then everything that came back, in order.
-	want := []struct {
-		at      string
-		send    string
-		receive string
-	}{
+	want := []struct{ at, send, receive string }{
 		{at: "100ms", send: `{"type":"subscribe","symbol":"AAPL"}`},
 		{at: "200ms", receive: `{"type":"trade","data":[{"s":"AAPL","p":190.5}]}`},
 		{at: "300ms", receive: `{"type":"ping"}`},
@@ -155,36 +149,25 @@ func TestRecordSession(t *testing.T) {
 	if want := "3 received (ping=1, trade=2)"; sr.String() != want {
 		t.Errorf("got %q, want %q", sr, want)
 	}
-
-	if s.RecordedAt.IsZero() {
-		t.Error("recordedAt was not set")
-	}
 }
 
 // TestRecordSessionTimeout is the case that matters most: a feed that never
 // sends what you were waiting for is an answer, not an error.
 func TestRecordSessionTimeout(t *testing.T) {
-	url := serve(t, func(conn *websocket.Conn) {
-		if err := conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"trade"}`)); err != nil {
-			t.Errorf("writing: %v", err)
-
-			return
-		}
+	uri := serve(t, func(conn *websocket.Conn) {
+		writeAll(t, conn, `{"type":"trade"}`)
 
 		// Hold the connection open and send nothing else.
 		<-time.After(time.Second)
 	})
 
-	s := &enrich.Session{
-		Server: "production",
-		Until: &enrich.Until{
-			Timeout:       enrich.NewDuration(200 * time.Millisecond),
-			Discriminator: "type",
-			Kinds:         map[string]int{"trade": 1, "ping": 1},
-		},
-	}
+	s := &enrich.Session{URI: uri}
 
-	r := &enrich.Recorder{URLs: map[string]string{"production": url}}
+	r := &enrich.Recorder{Until: &enrich.Until{
+		Timeout:       200 * time.Millisecond,
+		Discriminator: "type",
+		Kinds:         map[string]int{"trade": 1, "ping": 1},
+	}}
 
 	sr, err := r.Session(context.Background(), s)
 	if err != nil {
@@ -200,25 +183,104 @@ func TestRecordSessionTimeout(t *testing.T) {
 	}
 }
 
-// TestRecordSessionMasks checks that a credential a server puts in a payload
-// does not survive into the recording.
-func TestRecordSessionMasks(t *testing.T) {
-	url := serve(t, func(conn *websocket.Conn) {
-		msg := `{"type":"auth","session":"3f2c-live-session-token","ok":true}`
-		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+// TestRecordSessionNotJSON is the Yahoo case: a feed whose frames are not JSON
+// is still recorded, kept as strings, and counted — never dropped and never an
+// error, because what it sent is the evidence.
+func TestRecordSessionNotJSON(t *testing.T) {
+	uri := serve(t, func(conn *websocket.Conn) {
+		writeAll(t, conn, `CgRBQVBMFQAAP0M=`)
+
+		if err := conn.WriteMessage(websocket.BinaryMessage, []byte{0x0a, 0x04, 0x41}); err != nil {
 			t.Errorf("writing: %v", err)
 		}
 	})
 
-	s := &enrich.Session{
-		Server: "production",
-		Until: &enrich.Until{
-			Timeout:  enrich.NewDuration(10 * time.Second),
-			Messages: 1,
-		},
+	s := &enrich.Session{URI: uri}
+
+	r := &enrich.Recorder{Until: &enrich.Until{
+		Timeout:  10 * time.Second,
+		Messages: 2,
+	}}
+
+	sr, err := r.Session(context.Background(), s)
+	if err != nil {
+		t.Fatalf("recording: %v", err)
 	}
 
-	r := &enrich.Recorder{URLs: map[string]string{"production": url}}
+	want := []string{
+		`"CgRBQVBMFQAAP0M="`, // text that is not JSON, kept as a string
+		`"CgRB"`,             // a binary frame, kept as base64
+	}
+
+	for i, w := range want {
+		if got := string(s.Frames[i].Receive); got != w {
+			t.Errorf("frames[%d].receive: got %s, want %s", i, got, w)
+		}
+	}
+
+	if want := "2 received; 2 not JSON"; sr.String() != want {
+		t.Errorf("got %q, want %q", sr, want)
+	}
+}
+
+// TestRecordSessionKeepsEnvRef checks that the URI is written back as authored:
+// a reference to an environment variable is what keeps the file runnable, so
+// masking must not eat it.
+func TestRecordSessionKeepsEnvRef(t *testing.T) {
+	uri := serve(t, func(conn *websocket.Conn) { writeAll(t, conn, `{"ok":true}`) })
+
+	t.Setenv("TEST_RECORD_TOKEN", "s3cret")
+
+	authored := uri + "?token=$TEST_RECORD_TOKEN"
+	s := &enrich.Session{URI: authored}
+
+	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
+
+	if _, err := r.Session(context.Background(), s); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+
+	if s.URI != authored {
+		t.Errorf("got %s, want %s", s.URI, authored)
+	}
+
+	if strings.Contains(s.URI, "s3cret") {
+		t.Error("the expanded credential was written back")
+	}
+}
+
+// TestRecordSessionMasksLiteralURI checks the other half: a URI that carries a
+// credential outright, rather than a reference to one, does not survive.
+func TestRecordSessionMasksLiteralURI(t *testing.T) {
+	uri := serve(t, func(conn *websocket.Conn) { writeAll(t, conn, `{"ok":true}`) })
+
+	s := &enrich.Session{URI: uri + "?token=s3cret&symbol=AAPL"}
+
+	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
+
+	if _, err := r.Session(context.Background(), s); err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+
+	if strings.Contains(s.URI, "s3cret") {
+		t.Errorf("the credential survived: %s", s.URI)
+	}
+
+	if !strings.Contains(s.URI, "symbol=AAPL") {
+		t.Errorf("an ordinary parameter was lost: %s", s.URI)
+	}
+}
+
+// TestRecordSessionMasksFrames checks that a credential a server puts in a
+// payload does not survive into the recording.
+func TestRecordSessionMasksFrames(t *testing.T) {
+	uri := serve(t, func(conn *websocket.Conn) {
+		writeAll(t, conn, `{"type":"auth","session":"3f2c-live-session-token","ok":true}`)
+	})
+
+	s := &enrich.Session{URI: uri}
+
+	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
 
 	if _, err := r.Session(context.Background(), s); err != nil {
 		t.Fatalf("recording: %v", err)
@@ -230,18 +292,15 @@ func TestRecordSessionMasks(t *testing.T) {
 	}
 }
 
-func TestRecordUnknownServer(t *testing.T) {
-	s := &enrich.Session{
-		Server: "production",
-		Until:  &enrich.Until{Timeout: enrich.NewDuration(time.Second)},
-	}
+func TestRecordNoURI(t *testing.T) {
+	r := &enrich.Recorder{Until: &enrich.Until{Timeout: time.Second}}
 
-	_, err := (&enrich.Recorder{}).Session(context.Background(), s)
+	_, err := r.Session(context.Background(), &enrich.Session{})
 	if err == nil {
 		t.Fatal("got no error, want one")
 	}
 
-	if want := `no URL for server "production"`; err.Error() != want {
+	if want := "uri is required"; err.Error() != want {
 		t.Errorf("got %q, want %q", err, want)
 	}
 }

@@ -29,6 +29,10 @@ type SessionReport struct {
 	Short int
 	// Missing maps each kind that came up short to how many more were wanted.
 	Missing map[string]int
+	// NotJSON counts the received frames that were not JSON and were kept as
+	// strings instead. A feed that answers in base64 or plain text shows up here
+	// rather than as an error.
+	NotJSON int
 }
 
 // newSessionReport compares what was asked for against what arrived.
@@ -97,6 +101,10 @@ func (sr *SessionReport) String() string {
 		}
 
 		fmt.Fprintf(&b, " (%s)", strings.Join(parts, ", "))
+	}
+
+	if sr.NotJSON > 0 {
+		fmt.Fprintf(&b, "; %d not JSON", sr.NotJSON)
 	}
 
 	if sr.Complete() {

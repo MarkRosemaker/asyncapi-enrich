@@ -1,0 +1,13 @@
+[
+  {
+    "uri": "wss://ws.finnhub.io?token=$FINNHUB_API_KEY",
+    "frames": [
+      {
+        "send": {
+          "type": "subscribe",
+          "symbol": "AAPL"
+        }
+      }
+    ]
+  }
+]

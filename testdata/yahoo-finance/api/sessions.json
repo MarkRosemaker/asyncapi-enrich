@@ -1,0 +1,14 @@
+[
+  {
+    "uri": "wss://streamer.finance.yahoo.com/?version=2",
+    "frames": [
+      {
+        "send": {
+          "subscribe": [
+            "AAPL"
+          ]
+        }
+      }
+    ]
+  }
+]

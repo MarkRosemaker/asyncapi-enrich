@@ -102,17 +102,31 @@ func (m *Masker) URL(u *url.URL) *url.URL {
 		out.User = url.User(Replacement)
 	}
 
-	if q := out.Query(); len(q) > 0 {
-		for name, vs := range q {
-			if !m.masks(name) {
+	q := out.Query()
+	masked := false
+
+	for name, vs := range q {
+		if !m.masks(name) {
+			continue
+		}
+
+		for i := range vs {
+			// A reference to an environment variable is not a credential — it is
+			// what keeps the file runnable — so it is left alone.
+			if isEnvRef(vs[i]) {
 				continue
 			}
 
-			for i := range vs {
-				vs[i] = Replacement
-			}
+			vs[i] = Replacement
+			masked = true
 		}
+	}
 
+	// The query is only rebuilt when something in it actually changed. Encoding
+	// a query that needed no masking would rewrite it for no reason — turning an
+	// authored "?token=$FINNHUB_API_KEY" into "?token=%24FINNHUB_API_KEY" — and a
+	// recording should differ from what was authored only where a server spoke.
+	if masked {
 		out.RawQuery = q.Encode()
 	}
 
@@ -207,8 +221,18 @@ func (s stack) setExpectName(v bool) {
 	}
 }
 
-// Session masks every frame of a session in place.
+// isEnvRef reports whether a value is a reference to an environment variable,
+// e.g. "$FINNHUB_API_KEY" or "${FINNHUB_API_KEY}", rather than a secret itself.
+func isEnvRef(v string) bool {
+	return strings.HasPrefix(v, "$")
+}
+
+// Session masks a session's URI and every one of its frames, in place.
 func (m *Masker) Session(s *Session) error {
+	if u, err := url.Parse(s.URI); err == nil {
+		s.URI = m.URL(u).String()
+	}
+
 	for _, f := range s.Frames {
 		for _, p := range []*jsontext.Value{&f.Send, &f.Receive} {
 			masked, err := m.Value(*p)

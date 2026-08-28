@@ -102,6 +102,12 @@ func TestMaskerURL(t *testing.T) {
 		"user information":  {"wss://user:pass@host/ws", "wss://%2A%2A%2A@host/ws"},
 		"several to mask":   {"wss://h/?token=a&key=b&x=1", "wss://h/?key=%2A%2A%2A&token=%2A%2A%2A&x=1"},
 		"a value kept once": {"wss://h/?symbol=AAPL", "wss://h/?symbol=AAPL"},
+		// An env reference is what keeps a sessions file runnable. Masking it, or
+		// even re-encoding the query around it, would break that.
+		"an env reference is not a credential": {
+			"wss://ws.finnhub.io?token=$FINNHUB_API_KEY",
+			"wss://ws.finnhub.io?token=$FINNHUB_API_KEY",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			u, err := url.Parse(tc.in)

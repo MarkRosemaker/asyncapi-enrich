@@ -29,18 +29,18 @@ sequence of messages in both directions that never ends on its own — so an
 interaction here is a **session**: the frames you send, the frames that come back,
 when each arrived, and a declared condition saying when to stop listening.
 
-You author this:
+You author this — `api/sessions.json`, named so it does not collide with
+`openapi-enrich`'s `api/interactions.json`:
 
 ```json
-{
-  "sessions": [{
-    "server": "production",
-    "until": {"timeout": "60s", "discriminator": "type", "kinds": {"trade": 3, "ping": 1}},
+[
+  {
+    "uri": "wss://ws.finnhub.io?token=$FINNHUB_API_KEY",
     "frames": [
       {"send": {"type": "subscribe", "symbol": "AAPL"}}
     ]
-  }]
-}
+  }
+]
 ```
 
 and recording fills in the rest:
@@ -51,11 +51,23 @@ and recording fills in the rest:
       {"at": "1.08s", "receive": {"type": "ping"}}
 ```
 
+A session holds only what is needed to open a connection and what crossed it.
+Everything else — what the server is called, what the messages mean, why the
+session exists — belongs in the AsyncAPI document, which is the artefact this
+file is here to improve. The stop condition is not in the file either: it is what
+you asked the recorder for, not something the server did, so it lives on the
+command line.
+
+The URI is what the specification is enriched from, the same way `openapi-enrich`
+enriches from a recorded request URL: the scheme gives the server's `protocol`,
+the host and port give its `host`, the path gives the channel `address`, and a
+credential in the query gives a `httpApiKey` security scheme with `in: query`.
+
 ## Four things a session has to say that a request does not
 
 - **When to stop.** A response ends an HTTP request; nothing ends a feed. So the
-  condition is declared: a timeout, a number of messages, or — the one worth
-  reaching for — *one of each kind*. A specification is only complete once every
+  condition is declared on the command line: a timeout, a number of messages, or
+  — the one worth reaching for — *one of each kind*. A specification is only complete once every
   message kind has actually been seen, and a generated reader only has to
   discriminate when there is more than one kind to tell apart.
 - **What did not happen.** A timeout with conditions unmet is not a failure. *"Sixty
@@ -75,16 +87,13 @@ go get -tool github.com/MarkRosemaker/asyncapi-enrich/cmd/asyncapi-record
 ```
 
 ```bash
-asyncapi-record -f api/interactions.json \
-    -url 'production=wss://ws.finnhub.io?token=$FINNHUB_API_KEY'
+asyncapi-record -f api/sessions.json -kinds trade=3,ping=1 -timeout 60s
 ```
 
-A session names its server by **key**, never by URL. The URL is supplied at record
-time, carries the credential, and is used to dial and nothing else — so the
-credential has no path into the file that gets committed.
-
-Environment variables in a URL are expanded by the tool rather than the shell, to
-keep the credential out of shell history.
+Environment variables in a URI are expanded by the tool rather than the shell, to
+keep the credential out of shell history — and the URI is written back **exactly
+as authored**, so the reference survives and the expansion never reaches disk. A
+URI that carries a credential outright instead is masked on the way out.
 
 ## Masking
 
