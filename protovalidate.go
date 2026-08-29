@@ -118,7 +118,8 @@ func validateSchemaProtoContent(path string, s *asyncapi.Schema) string {
 		fields, err := parseProtoWire(data)
 		if err != nil {
 			mismatches = append(mismatches, fmt.Sprintf(
-				"  example %q does not parse as protobuf at all: %v", str, err))
+				"  example %q does not parse as protobuf at all: %v", str, err,
+			))
 
 			continue
 		}
@@ -160,7 +161,8 @@ func describeWireMismatch(example string, want expectedField, observed int) stri
 		"  field %d (%q, declared as %s, wire type %s) — example %q instead shows wire type %s, "+
 			"which %s. The recorded traffic does not look like this message.",
 		want.number, want.name, want.kind, wireTypeName(want.wireType),
-		example, wireTypeName(observed), kindsForWireType(observed))
+		example, wireTypeName(observed), kindsForWireType(observed),
+	)
 }
 
 // isProtobufFormat reports whether f names either protobuf schema format the
