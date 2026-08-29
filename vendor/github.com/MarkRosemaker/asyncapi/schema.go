@@ -136,6 +136,24 @@ type Schema struct {
 	// special encoding for binary data
 	ContentEncoding  string `json:"contentEncoding,omitempty"  yaml:"contentEncoding,omitempty"`
 	ContentMediaType string `json:"contentMediaType,omitempty" yaml:"contentMediaType,omitempty"`
+	// ContentSchema is the schema the content conforms to once decoded per
+	// ContentEncoding and interpreted per ContentMediaType — e.g. what a
+	// contentMediaType: application/vnd.google.protobuf;version=3 field's
+	// base64-decoded bytes must be shaped like. It describes the content, not
+	// this schema's own value, which is still whatever ContentEncoding says
+	// (typically a plain string): the same relationship ContentMediaType
+	// already has to the value.
+	//
+	// This keyword was added to JSON Schema in 2019-09, after the Draft 07
+	// vocabulary this object is otherwise a superset of, but reuses the same
+	// AnySchemaRef a [Message]'s payload does: a content format that is not
+	// itself AsyncAPI (protobuf, Avro, ...) needs the same "which format,
+	// then the schema in that format" shape a payload does, and [AnySchema]'s
+	// Multi Format Schema support already provides exactly that.
+	// ([Specification])
+	//
+	// [Specification]: https://json-schema.org/draft/2020-12/json-schema-core#name-contentschema
+	ContentSchema *AnySchemaRef `json:"contentSchema,omitempty" yaml:"contentSchema,omitempty"`
 
 	// Whether the value is only sent by the server and must not be sent by the client.
 	ReadOnly bool `json:"readOnly,omitzero" yaml:"readOnly,omitempty"`
@@ -270,6 +288,7 @@ func (s *Schema) subSchemas() []subSchema {
 		{"contains", s.Contains},
 		{"additionalProperties", s.AdditionalProperties},
 		{"propertyNames", s.PropertyNames},
+		{"contentSchema", s.ContentSchema},
 	}
 }
 
