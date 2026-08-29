@@ -77,12 +77,14 @@
         ],
         "properties": {
           "message": {
+            "description": "Reverse-engineered from recorded protobuf-in-base64 payloads. There is no verified .proto source for this — field numbers and raw values below are what the wire format itself proved consistent across every recorded sample; field meanings are not asserted.\n\n  field 1 (length-delimited): string-like, e.g. \"AAPL\"\n  field 2 (32-bit): 317.1300048828125, 317.12908935546875\n  field 3 (varint): 3575848608000, 3575848610000 (never decreased across samples — consistent with a running counter)\n  field 5 (length-delimited): string-like, e.g. \"NMS\"\n  field 6 (varint): 8\n  field 7 (varint): 1\n  field 8 (32-bit): 0.8106104731559753, 0.8103194236755371\n  field 9 (varint): 5104342, 5104372, 5105048 (never decreased across samples — consistent with a running counter)\n  field 12 (32-bit): 2.550018310546875, 2.549102783203125\n  field 22 (varint), seen in 1 of 3 samples: 100\n  field 27 (varint): 4",
             "type": "string",
             "examples": [
               "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I1sW3AmWAMyNAsAFk2AEE",
               "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I9MW3AmWAMyNA2AEE",
               "CgRBQVBMFYaQnkMY0NG+iYloKgNOTVMwCDgBRRhxTz9ImMu3AmWAJCNA2AEE"
-            ]
+            ],
+            "contentEncoding": "base64"
           },
           "type": {
             "type": "string",
