@@ -2,6 +2,9 @@ package enrich_test
 
 import (
 	"testing"
+
+	"github.com/MarkRosemaker/asyncapi"
+	enrich "github.com/MarkRosemaker/asyncapi-enrich"
 )
 
 // TestDetectBinaryConsistentProtobufIsMarked checks the positive case: three
@@ -97,5 +100,58 @@ func TestDetectBinaryInconsistentWireTypeIsLeftAlone(t *testing.T) {
 
 	if v.ContentEncoding != "" {
 		t.Errorf("v.contentEncoding: got %q, want empty (inconsistent wire types)", v.ContentEncoding)
+	}
+}
+
+// TestDetectBinaryPreservesHandAuthoredAnnotation checks that a maintainer
+// who has already documented a field — set ContentEncoding and written a
+// Description, presumably after reading the real .proto — does not have
+// either overwritten, duplicated, or blanked out the next time a recording
+// is enriched into the same document. detectSchemaBinary already skips a
+// field whose ContentEncoding is non-empty, and mergeScalar never touches
+// ContentEncoding or Description at all, so this is standing behavior; the
+// test exists to keep it that way on purpose, not to add anything new.
+func TestDetectBinaryPreservesHandAuthoredAnnotation(t *testing.T) {
+	const handWritten = "Base64-encoded PricingData protobuf message; see PricingData.proto."
+
+	doc := enrich.NewDocument()
+	doc.Components.Schemas = asyncapi.Schemas{
+		"Pricing": &asyncapi.AnySchemaRef{Value: &asyncapi.AnySchema{Schema: &asyncapi.Schema{
+			Type: asyncapi.DataTypes{asyncapi.TypeObject},
+			Properties: asyncapi.Schemas{
+				"message": &asyncapi.AnySchemaRef{Value: &asyncapi.AnySchema{Schema: &asyncapi.Schema{
+					Type:            asyncapi.DataTypes{asyncapi.TypeString},
+					ContentEncoding: "base64",
+					Description:     handWritten,
+				}}},
+				"type": &asyncapi.AnySchemaRef{Value: &asyncapi.AnySchema{Schema: &asyncapi.Schema{
+					Type: asyncapi.DataTypes{asyncapi.TypeString},
+				}}},
+			},
+		}}},
+	}
+
+	ss := enrich.Sessions{{
+		URI: "ws://example.invalid",
+		Frames: []*enrich.Frame{
+			{Receive: []byte(`{"type":"pricing","message":"CAoSBEFBUEw="}`)},
+			{Receive: []byte(`{"type":"pricing","message":"CBQSBE1TRlQ="}`)},
+		},
+	}}
+
+	if err := enrich.Enrich(doc, ss); err != nil {
+		t.Fatalf("enriching: %v", err)
+	}
+
+	message := doc.Components.Schemas["Pricing"].Value.Schema.Properties["message"].Value.Schema
+
+	if message.ContentEncoding != "base64" {
+		t.Errorf("message.contentEncoding: got %q, want %q (should be left as the maintainer set it)",
+			message.ContentEncoding, "base64")
+	}
+
+	if message.Description != handWritten {
+		t.Errorf("message.description: got %q, want %q (hand-authored description should survive re-enriching)",
+			message.Description, handWritten)
 	}
 }
