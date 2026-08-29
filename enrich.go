@@ -24,6 +24,15 @@ const discriminatorField = "type"
 // inferred and merged from every frame observed. It is safe to call more than
 // once, on more than one recording: a server, channel, message, or schema
 // already in doc is extended rather than duplicated.
+//
+// If a field already carries a ContentSchema declaring a protobuf message —
+// something only a maintainer sets, by hand, from a real .proto; this
+// package only ever infers ContentEncoding on its own (see
+// [detectBinaryEncodings]) — Enrich also fails when the newly recorded
+// examples do not decode as that message: see [validateProtoSchemas]. A
+// maintainer who pastes in the real .proto gets told immediately when a
+// recording stops matching it, rather than finding out from a schema that
+// silently drifted.
 func Enrich(doc *asyncapi.Document, ss Sessions) error {
 	if err := ss.Validate(); err != nil {
 		return err
@@ -45,6 +54,12 @@ func Enrich(doc *asyncapi.Document, ss Sessions) error {
 
 	for _, ch := range doc.Channels {
 		ch.Value.Messages.Sort()
+	}
+
+	detectBinaryEncodings(doc)
+
+	if err := validateProtoSchemas(doc); err != nil {
+		return err
 	}
 
 	return resolve(doc)

@@ -82,7 +82,8 @@
               "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I1sW3AmWAMyNAsAFk2AEE",
               "CgRBQVBMFaSQnkMYgMK+iYloKgNOTVMwCDgBRSuETz9I9MW3AmWAMyNA2AEE",
               "CgRBQVBMFYaQnkMY0NG+iYloKgNOTVMwCDgBRRhxTz9ImMu3AmWAJCNA2AEE"
-            ]
+            ],
+            "contentEncoding": "base64"
           },
           "type": {
             "type": "string",
