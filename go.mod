@@ -8,7 +8,7 @@ require (
 	github.com/go-api-libs/types v0.0.0-20260821232109-0cf45378823e
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
