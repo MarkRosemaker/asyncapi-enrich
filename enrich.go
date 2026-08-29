@@ -47,7 +47,7 @@ func Enrich(doc *asyncapi.Document, ss Sessions) error {
 		ch.Value.Messages.Sort()
 	}
 
-	detectBinaryEncodings(doc, ss)
+	detectBinaryEncodings(doc)
 
 	return resolve(doc)
 }
