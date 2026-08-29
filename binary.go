@@ -3,6 +3,7 @@ package enrich
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
@@ -17,23 +18,74 @@ import (
 // detectBinaryEncodings walks every schema reachable from doc.Components.Schemas
 // and marks a string field whose recorded examples are all base64 and decode
 // to a self-consistent raw protobuf byte stream — see [parseProtoWire] — with
-// ContentEncoding "base64", documenting what the wire format itself revealed
-// in Description.
+// ContentEncoding "base64", describing the data found there in Description.
 //
 // This exists because a WebSocket API is free to put anything inside a JSON
 // string, and at least one real one (Yahoo Finance's pricing feed) puts
 // base64-encoded protobuf there. AsyncAPI's JSON Schema has no keyword for
 // "this is protobuf", and this package has no .proto to check against — only
-// the bytes themselves and however many samples were recorded. What it
-// asserts is limited to what those bytes prove structurally: that they are
-// valid base64, and that decoding them yields a byte stream whose protobuf
-// tags agree with each other across every sample. It does not guess field
-// names or semantics; a human with domain knowledge (or a real .proto) is
-// still needed for that, and gets a head start from the field-by-field
-// breakdown in Description instead of starting from an opaque string.
-func detectBinaryEncodings(doc *asyncapi.Document) {
+// the bytes themselves, however many samples were recorded, and (via ss) what
+// the client itself sent, which sometimes shows back up in what it receives.
+// What Description says is limited to what that evidence proves: it does not
+// invent field names, and a genuine ambiguity in the wire format — a varint
+// can be a plain integer or a zigzag-encoded signed one, and nothing in the
+// bytes says which — is reported as exactly that, not guessed away.
+func detectBinaryEncodings(doc *asyncapi.Document, ss Sessions) {
+	sent := collectSentStrings(ss)
+
 	for _, ref := range doc.Components.Schemas {
-		walkSchema(ref.Value.Schema, detectSchemaBinary)
+		walkSchema(ref.Value.Schema, func(s *asyncapi.Schema) { detectSchemaBinary(s, sent) })
+	}
+}
+
+// collectSentStrings returns every string value found anywhere in a "send"
+// frame, or in the unsubscribe payload, across every session. A base64 field
+// this package decodes may echo one of these back — Yahoo Finance's pricing
+// feed echoes the symbol the client just subscribed to — and that is
+// evidence worth surfacing: it did not come from guessing what the field
+// might contain, only from noticing it matches something the recording
+// already shows was sent.
+func collectSentStrings(ss Sessions) map[string]bool {
+	out := map[string]bool{}
+
+	collect := func(v jsontext.Value) {
+		if len(v) == 0 {
+			return
+		}
+
+		var any any
+		if err := json.Unmarshal(v, &any); err != nil {
+			return
+		}
+
+		collectStrings(any, out)
+	}
+
+	for _, s := range ss {
+		for _, f := range s.Frames {
+			collect(f.Send)
+		}
+
+		collect(s.Unsubscribe)
+	}
+
+	return out
+}
+
+// collectStrings walks an arbitrary decoded JSON value and adds every string
+// it finds, at any depth, to out.
+func collectStrings(v any, out map[string]bool) {
+	switch v := v.(type) {
+	case string:
+		out[v] = true
+	case []any:
+		for _, e := range v {
+			collectStrings(e, out)
+		}
+	case map[string]any:
+		for _, e := range v {
+			collectStrings(e, out)
+		}
 	}
 }
 
@@ -64,7 +116,7 @@ func walkSchema(s *asyncapi.Schema, fn func(*asyncapi.Schema)) {
 // package would rather say nothing than call a coincidence a pattern.
 const minSamplesForBinaryDetection = 2
 
-func detectSchemaBinary(s *asyncapi.Schema) {
+func detectSchemaBinary(s *asyncapi.Schema, sent map[string]bool) {
 	if !s.Type.Contains(asyncapi.TypeString) || s.Format != "" || s.ContentEncoding != "" {
 		return
 	}
@@ -95,7 +147,7 @@ func detectSchemaBinary(s *asyncapi.Schema) {
 	}
 
 	s.ContentEncoding = "base64"
-	s.Description = mergeString(s.Description, describeProtoLayout(layout))
+	s.Description = mergeString(s.Description, describeProtoLayout(layout, sent))
 }
 
 // protoFieldSamples is what every recorded sample that carried a given
@@ -166,18 +218,16 @@ func consistentProtoLayout(samples [][]byte) ([]protoFieldSamples, bool) {
 	return out, true
 }
 
-// describeProtoLayout renders the field-by-field evidence consistentProtoLayout
-// found into prose, for [asyncapi.Schema.Description]. It states only what the
-// bytes themselves show — value, wire type, whether a bytes field decodes as
-// UTF-8, whether a numeric field only ever increased — because anything past
-// that (what the field means) is not something the recording can prove.
-func describeProtoLayout(layout []protoFieldSamples) string {
+// describeProtoLayout renders what consistentProtoLayout found about the data
+// itself — not how it was found — for [asyncapi.Schema.Description]: one line
+// per field naming its shape (a short string, a number in some range, a
+// counter that only grows), then any cross-field relationship the samples
+// support (a ratio that holds across every one of them).
+func describeProtoLayout(layout []protoFieldSamples, sent map[string]bool) string {
 	var b strings.Builder
 
-	b.WriteString("Reverse-engineered from recorded protobuf-in-base64 payloads. " +
-		"There is no verified .proto source for this — field numbers and raw " +
-		"values below are what the wire format itself proved consistent across " +
-		"every recorded sample; field meanings are not asserted.\n")
+	b.WriteString("Protobuf-encoded (base64 on the wire). No field is named — " +
+		"each line below is what the recorded samples show that field holding.\n")
 
 	nSamples := 0
 	for _, f := range layout {
@@ -194,14 +244,24 @@ func describeProtoLayout(layout []protoFieldSamples) string {
 		b.WriteString(")")
 
 		if f.seenIn < nSamples {
-			fmt.Fprintf(&b, ", seen in %d of %d samples", f.seenIn, nSamples)
+			fmt.Fprintf(&b, ", present in %d of %d samples", f.seenIn, nSamples)
 		}
 
 		b.WriteString(": ")
-		b.WriteString(describeFieldValues(f))
+		b.WriteString(describeFieldValues(f, sent))
 	}
 
-	return b.String()
+	if rel := findRatioRelationships(layout); len(rel) > 0 {
+		b.WriteString("\n\nAcross every sample:\n")
+
+		for _, r := range rel {
+			b.WriteString("  ")
+			b.WriteString(r)
+			b.WriteString("\n")
+		}
+	}
+
+	return strings.TrimRight(b.String(), "\n")
 }
 
 func wireTypeName(wt int) string {
@@ -219,74 +279,237 @@ func wireTypeName(wt int) string {
 	}
 }
 
-// describeFieldValues renders the observed values of one field, noting the
-// structural properties consistentProtoLayout is positioned to actually
-// prove: that every sample's bytes were valid UTF-8, or that a numeric value
-// never went down across samples (recording order is the order these frames
-// arrived in, so "never decreased" here means exactly that, not a guess).
-func describeFieldValues(f protoFieldSamples) string {
+// describeFieldValues renders what one field's own samples show: a short
+// string (naming whether it exactly matches something the client itself
+// sent), a number and its range or trend, or — for a varint, which protobuf
+// uses for both plain and zigzag-encoded signed integers with nothing in the
+// wire format itself saying which — both readings when they disagree, since
+// only a .proto (or an application that knows what it is talking to) can
+// settle that one.
+func describeFieldValues(f protoFieldSamples, sent map[string]bool) string {
 	switch f.wireType {
 	case protoWireBytes:
-		allUTF8 := true
-
-		strs := make([]string, len(f.values))
-
-		for i, v := range f.values {
-			if !utf8.Valid(v.raw) {
-				allUTF8 = false
-			}
-
-			strs[i] = fmt.Sprintf("%q", string(v.raw))
-		}
-
-		if allUTF8 {
-			return "string-like, e.g. " + strings.Join(dedupLimit(strs, 3), ", ")
-		}
-
-		hexes := make([]string, len(f.values))
-		for i, v := range f.values {
-			hexes[i] = fmt.Sprintf("%x", v.raw)
-		}
-
-		return "raw bytes, e.g. " + strings.Join(dedupLimit(hexes, 3), ", ")
-
+		return describeBytesField(f, sent)
 	case protoWireVarint:
-		return describeNumeric(f, func(v protoField) float64 { return float64(v.uvarint) }, false)
-
+		return describeVarintField(f)
 	case protoWireFixed32:
-		return describeNumeric(f, func(v protoField) float64 { return float64(v.Float32()) }, true)
-
+		return describeNumeric(f, func(v protoField) float64 { return float64(v.Float32()) })
 	case protoWireFixed64:
-		return describeNumeric(f, func(v protoField) float64 { return v.Float64() }, true)
-
+		return describeNumeric(f, func(v protoField) float64 { return v.Float64() })
 	default:
 		return "(unrecognized wire type)"
 	}
 }
 
-func describeNumeric(f protoFieldSamples, asFloat func(protoField) float64, isFloatWireType bool) string {
+func describeBytesField(f protoFieldSamples, sent map[string]bool) string {
+	allUTF8 := true
+	allSent := len(f.values) > 0
+
+	strs := make([]string, len(f.values))
+
+	for i, v := range f.values {
+		if !utf8.Valid(v.raw) {
+			allUTF8 = false
+		}
+
+		if !sent[string(v.raw)] {
+			allSent = false
+		}
+
+		strs[i] = fmt.Sprintf("%q", string(v.raw))
+	}
+
+	if !allUTF8 {
+		hexes := make([]string, len(f.values))
+		for i, v := range f.values {
+			hexes[i] = fmt.Sprintf("%x", v.raw)
+		}
+
+		return "binary data, e.g. " + strings.Join(dedupLimit(hexes, 3), ", ")
+	}
+
+	desc := "a short string, e.g. " + strings.Join(dedupLimit(strs, 3), ", ")
+
+	if allSent {
+		desc += " — every value recorded here is one the client itself sent earlier in the session"
+	}
+
+	return desc
+}
+
+func describeVarintField(f protoFieldSamples) string {
+	plain := make([]string, len(f.values))
+	zigzag := make([]string, len(f.values))
+	monotonic := true
+	constant := true
+
+	for i, v := range f.values {
+		plain[i] = fmt.Sprintf("%d", v.uvarint)
+		zigzag[i] = fmt.Sprintf("%d", zigzagDecode(v.uvarint))
+
+		if i > 0 {
+			if v.uvarint < f.values[i-1].uvarint {
+				monotonic = false
+			}
+
+			if v.uvarint != f.values[i-1].uvarint {
+				constant = false
+			}
+		}
+	}
+
+	desc := "a number, e.g. " + strings.Join(dedupLimit(plain, 3), ", ")
+
+	if plain[0] != zigzag[0] {
+		desc += fmt.Sprintf(" (protobuf's varint wire type also allows a zigzag-encoded"+
+			" signed reading, which this would be: %s — the wire bytes alone do not say which is intended)",
+			strings.Join(dedupLimit(zigzag, 3), ", "))
+	}
+
+	switch {
+	case constant && len(f.values) >= minSamplesForBinaryDetection:
+		if v := f.values[0].uvarint; v < 128 {
+			desc += fmt.Sprintf(" — the same value (%d) in every sample; a small constant like this is often an enum member or a flag", v)
+		} else {
+			desc += " — the same value in every sample"
+		}
+	case monotonic && len(f.values) >= minSamplesForBinaryDetection:
+		desc += " — only ever grows from one sample to the next, like a running count"
+	}
+
+	return desc
+}
+
+func describeNumeric(f protoFieldSamples, asFloat func(protoField) float64) string {
 	nums := make([]string, len(f.values))
 	monotonic := true
 
 	for i, v := range f.values {
-		if isFloatWireType {
-			nums[i] = fmt.Sprintf("%v", asFloat(v))
-		} else {
-			nums[i] = fmt.Sprintf("%d", v.uvarint)
-		}
+		nums[i] = fmt.Sprintf("%v", asFloat(v))
 
 		if i > 0 && asFloat(v) < asFloat(f.values[i-1]) {
 			monotonic = false
 		}
 	}
 
-	desc := strings.Join(dedupLimit(nums, 3), ", ")
+	desc := "a number, e.g. " + strings.Join(dedupLimit(nums, 3), ", ")
 
 	if monotonic && len(f.values) >= minSamplesForBinaryDetection && nums[0] != nums[len(nums)-1] {
-		desc += " (never decreased across samples — consistent with a running counter)"
+		desc += " — only ever grows from one sample to the next, like a running count"
 	}
 
 	return desc
+}
+
+// ratioTolerance is how far a field-pair's ratio may drift, sample to
+// sample, and still count as "the same ratio" — wide enough that the last
+// digit or two of float32 rounding does not break the match, narrow enough
+// that two unrelated numbers are very unlikely to satisfy it by chance.
+const ratioTolerance = 0.02
+
+// findRatioRelationships looks for pairs of numeric fields whose ratio holds
+// steady across every sample both were present in — a value that only ever
+// tracks another one proportionally, the way a monetary change and a percent
+// change both track a price. It skips a field that is constant on its own
+// (a steady ratio to a constant is not a discovery) and reports each
+// qualifying pair once.
+func findRatioRelationships(layout []protoFieldSamples) []string {
+	type numericField struct {
+		number int
+		values []float64
+	}
+
+	var numeric []numericField
+
+	for _, f := range layout {
+		if f.wireType != protoWireFixed32 && f.wireType != protoWireFixed64 {
+			continue
+		}
+
+		values := make([]float64, len(f.values))
+		nonZero, distinct := false, false
+
+		for i, v := range f.values {
+			if f.wireType == protoWireFixed32 {
+				values[i] = float64(v.Float32())
+			} else {
+				values[i] = v.Float64()
+			}
+
+			if values[i] != 0 {
+				nonZero = true
+			}
+
+			if i > 0 && values[i] != values[0] {
+				distinct = true
+			}
+		}
+
+		if nonZero && distinct {
+			numeric = append(numeric, numericField{f.number, values})
+		}
+	}
+
+	var out []string
+
+	for i := range numeric {
+		for j := range numeric {
+			if i >= j || len(numeric[i].values) != len(numeric[j].values) {
+				continue
+			}
+
+			if ratio, ok := steadyRatio(numeric[i].values, numeric[j].values); ok {
+				out = append(out, fmt.Sprintf("field %d / field %d ≈ %.4g in every sample",
+					numeric[i].number, numeric[j].number, ratio))
+			}
+		}
+	}
+
+	return out
+}
+
+// steadyRatio reports the ratio a/b if it stays within [ratioTolerance] of
+// its own mean across every paired sample, and both sides avoid dividing by
+// (or near) zero.
+func steadyRatio(a, b []float64) (float64, bool) {
+	ratios := make([]float64, len(a))
+
+	for i := range a {
+		if math.Abs(b[i]) < 1e-9 {
+			return 0, false
+		}
+
+		ratios[i] = a[i] / b[i]
+	}
+
+	min, max := ratios[0], ratios[0]
+
+	for _, r := range ratios[1:] {
+		min = math.Min(min, r)
+		max = math.Max(max, r)
+	}
+
+	mean := (min + max) / 2
+	if mean == 0 {
+		return 0, false
+	}
+
+	if (max-min)/math.Abs(mean) > ratioTolerance {
+		return 0, false
+	}
+
+	return mean, true
+}
+
+// zigzagDecode reverses protobuf's zigzag encoding, the mapping an sint32 or
+// sint64 field uses to make small negative numbers as cheap to encode as
+// small positive ones: 0,1,2,3,4 → 0,-1,1,-2,2. A varint that is not actually
+// zigzag-encoded still decodes under this formula without erroring — it just
+// produces a different, equally "valid-looking" number — which is exactly
+// why the wire bytes alone cannot say which reading (plain or zigzag) the
+// schema intended.
+func zigzagDecode(u uint64) int64 {
+	return int64(u>>1) ^ -int64(u&1)
 }
 
 // dedupLimit returns the first n distinct strings of ss, in order.

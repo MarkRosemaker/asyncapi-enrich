@@ -3,6 +3,8 @@ package enrich_test
 import (
 	"strings"
 	"testing"
+
+	enrich "github.com/MarkRosemaker/asyncapi-enrich"
 )
 
 // TestDetectBinaryConsistentProtobufIsMarked checks the positive case: three
@@ -106,5 +108,88 @@ func TestDetectBinaryInconsistentWireTypeIsLeftAlone(t *testing.T) {
 
 	if v.ContentEncoding != "" {
 		t.Errorf("v.contentEncoding: got %q, want empty (inconsistent wire types)", v.ContentEncoding)
+	}
+}
+
+// TestDetectBinaryDataDescriptions checks the four evidence-based claims the
+// detector is willing to make about a field's data, each tied to a fact the
+// three crafted samples below actually demonstrate rather than a guess:
+//
+//   - field 1 (bytes "BTC") exactly matches a value the session's one send
+//     frame carries, so its description says so.
+//   - field 3 (varint, 10 → 12 → 15) only ever grows, so it reads as a
+//     running count.
+//   - field 4 (varint, 9 in every sample) is small and constant, so it reads
+//     as a possible enum member or flag.
+//   - field 2 (fixed32 price) and field 5 (fixed32, exactly price/100 in
+//     every sample) hold a steady ratio, so that relationship is reported.
+//
+// The samples are built by hand from the wire format spec (see
+// TestDetectBinaryConsistentProtobufIsMarked), not captured from anywhere.
+func TestDetectBinaryDataDescriptions(t *testing.T) {
+	doc := enrich.NewDocument()
+	ss := enrich.Sessions{{
+		URI: "ws://example.invalid",
+		Frames: []*enrich.Frame{
+			{Send: []byte(`{"subscribe":["BTC"]}`)},
+			{Receive: []byte(`{"type":"pricing","message":"CgNCVEMVAADIQhgKIAktAACAPw=="}`)},
+			{Receive: []byte(`{"type":"pricing","message":"CgNCVEMVAADKQhgMIAktrkeBPw=="}`)},
+			{Receive: []byte(`{"type":"pricing","message":"CgNCVEMVAADMQhgPIAktXI+CPw=="}`)},
+		},
+	}}
+
+	if err := enrich.Enrich(doc, ss); err != nil {
+		t.Fatalf("enriching: %v", err)
+	}
+
+	ref, ok := doc.Components.Schemas["Pricing"]
+	if !ok {
+		t.Fatalf("no Pricing schema; have %v", schemaNames(doc))
+	}
+
+	message := ref.Value.Schema.Properties["message"].Value.Schema
+
+	if message.ContentEncoding != "base64" {
+		t.Fatalf("message.contentEncoding: got %q, want %q", message.ContentEncoding, "base64")
+	}
+
+	desc := message.Description
+
+	checks := []struct {
+		name string
+		want string
+	}{
+		{"sent-string match", "the client itself sent"},
+		{"running count", "field 3 (varint): a number, e.g. 10, 12, 15"},
+		{"enum/flag hint", "enum member or a flag"},
+		{"ratio relationship", "field 2 / field 5"},
+	}
+
+	for _, c := range checks {
+		if !strings.Contains(desc, c.want) {
+			t.Errorf("%s: description missing %q:\n%s", c.name, c.want, desc)
+		}
+	}
+}
+
+// TestDetectBinaryZigzagAmbiguityIsSurfaced checks that a varint field whose
+// plain and zigzag-decoded readings disagree gets both readings reported,
+// rather than the detector silently picking one — nothing in protobuf's wire
+// format says which encoding a varint field uses, so this package does not
+// pretend otherwise. Field 1 here is a varint whose zigzag reading (-1)
+// differs from its plain one (1).
+func TestDetectBinaryZigzagAmbiguityIsSurfaced(t *testing.T) {
+	s := merge(t, "Weird",
+		`{"type":"weird","v":"CAE="}`,
+		`{"type":"weird","v":"CAI="}`,
+	)
+
+	v := s.Properties["v"].Value.Schema
+	if v.ContentEncoding != "base64" {
+		t.Fatalf("v.contentEncoding: got %q, want %q", v.ContentEncoding, "base64")
+	}
+
+	if !strings.Contains(v.Description, "zigzag") {
+		t.Errorf("v.description: missing the zigzag ambiguity note:\n%s", v.Description)
 	}
 }
