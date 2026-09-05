@@ -1,7 +1,0 @@
-version: "2"
-linters:
-  settings:
-    errcheck:
-      exclude-functions:
-        - '(*os.File).Close'
-        - '(io.Closer).Close'
