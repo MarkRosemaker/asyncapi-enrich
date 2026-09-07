@@ -107,7 +107,7 @@ func TestRecordSession(t *testing.T) {
 		Now: stepClock(100 * time.Millisecond),
 	}
 
-	sr, err := r.Session(context.Background(), s)
+	sr, err := r.Session(t.Context(), s)
 	if err != nil {
 		t.Fatalf("recording: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestRecordSessionTimeout(t *testing.T) {
 		Kinds:         map[string]int{"trade": 1, "ping": 1},
 	}}
 
-	sr, err := r.Session(context.Background(), s)
+	sr, err := r.Session(t.Context(), s)
 	if err != nil {
 		t.Fatalf("recording: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestRecordSessionNotJSON(t *testing.T) {
 		Messages: 2,
 	}}
 
-	sr, err := r.Session(context.Background(), s)
+	sr, err := r.Session(t.Context(), s)
 	if err != nil {
 		t.Fatalf("recording: %v", err)
 	}
@@ -247,7 +247,7 @@ func TestRecordSessionKeepsEnvRef(t *testing.T) {
 
 	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
 
-	if _, err := r.Session(context.Background(), s); err != nil {
+	if _, err := r.Session(t.Context(), s); err != nil {
 		t.Fatalf("recording: %v", err)
 	}
 
@@ -269,7 +269,7 @@ func TestRecordSessionMasksLiteralURI(t *testing.T) {
 
 	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
 
-	if _, err := r.Session(context.Background(), s); err != nil {
+	if _, err := r.Session(t.Context(), s); err != nil {
 		t.Fatalf("recording: %v", err)
 	}
 
@@ -293,7 +293,7 @@ func TestRecordSessionMasksFrames(t *testing.T) {
 
 	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
 
-	if _, err := r.Session(context.Background(), s); err != nil {
+	if _, err := r.Session(t.Context(), s); err != nil {
 		t.Fatalf("recording: %v", err)
 	}
 
@@ -306,7 +306,7 @@ func TestRecordSessionMasksFrames(t *testing.T) {
 func TestRecordNoURI(t *testing.T) {
 	r := &enrich.Recorder{Until: &enrich.Until{Timeout: time.Second}}
 
-	_, err := r.Session(context.Background(), &enrich.Session{})
+	_, err := r.Session(t.Context(), &enrich.Session{})
 	if err == nil {
 		t.Fatal("got no error, want one")
 	}
@@ -342,7 +342,7 @@ func TestRecordSkipsAlreadySatisfied(t *testing.T) {
 		}},
 	}
 
-	sr, err := r.Session(context.Background(), s)
+	sr, err := r.Session(t.Context(), s)
 	if err != nil {
 		t.Fatalf("recording: %v", err)
 	}
@@ -381,7 +381,7 @@ func TestRecordRestartsWhenIncomplete(t *testing.T) {
 		Kinds:         map[string]int{"trade": 3},
 	}}
 
-	sr, err := r.Session(context.Background(), s)
+	sr, err := r.Session(t.Context(), s)
 	if err != nil {
 		t.Fatalf("recording: %v", err)
 	}
@@ -433,7 +433,7 @@ func TestRecordParallel(t *testing.T) {
 	done := make(chan error, 1)
 
 	go func() {
-		_, err := r.Record(context.Background(), ss)
+		_, err := r.Record(t.Context(), ss)
 		done <- err
 	}()
 
@@ -473,7 +473,7 @@ func TestRecordSave(t *testing.T) {
 		},
 	}
 
-	if _, err := r.Record(context.Background(), ss); err != nil {
+	if _, err := r.Record(t.Context(), ss); err != nil {
 		t.Fatalf("recording: %v", err)
 	}
 
@@ -532,7 +532,7 @@ func TestRecordUnsubscribeAndClose(t *testing.T) {
 
 	r := &enrich.Recorder{Until: &enrich.Until{Timeout: 10 * time.Second, Messages: 1}}
 
-	sr, err := r.Session(context.Background(), s)
+	sr, err := r.Session(t.Context(), s)
 	if err != nil {
 		t.Fatalf("recording: %v", err)
 	}
