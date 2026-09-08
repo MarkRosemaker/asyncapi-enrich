@@ -20,6 +20,6 @@ require (
 	github.com/MarkRosemaker/yaml v0.0.0-20260907160114-cad47df4755a // indirect
 	github.com/MarkRosemaker/yaml2json v0.0.0-20260907160055-5fd427e5f4f6 // indirect
 	golang.org/x/exp v0.0.0-20260824195058-e88cd73687aa // indirect
-	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
