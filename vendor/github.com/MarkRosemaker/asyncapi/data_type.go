@@ -84,6 +84,7 @@ func (ds DataTypes) String() string {
 
 	var s strings.Builder
 	s.WriteString(string(ds[0]))
+
 	for _, d := range ds[1:] {
 		s.WriteString(", " + string(d))
 	}

@@ -124,6 +124,7 @@ func (l *loader) LoadFromReader(r io.Reader) (*Document, error) {
 
 	// check if the data is JSON, save read data to buffer
 	buff := &bytes.Buffer{}
+
 	ok, err := isJSONRead(io.TeeReader(r, buff))
 	if err != nil {
 		return nil, err

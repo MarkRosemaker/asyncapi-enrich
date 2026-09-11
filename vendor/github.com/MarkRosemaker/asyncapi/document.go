@@ -216,7 +216,6 @@ func (l *loader) resolveDocument(doc *Document) error {
 	// - AsyncAPI
 	// - ID
 	// - DefaultContentType
-
 	if err := l.resolveInfo(doc.Info); err != nil {
 		return &errpath.ErrField{Field: "info", Err: err}
 	}

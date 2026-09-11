@@ -53,6 +53,7 @@ func (l *loader) LoadFromDataJSON(data []byte) (*Document, error) {
 func isJSONRead(r io.Reader) (bool, error) {
 	for {
 		var b [1]byte
+
 		_, err := r.Read(b[:])
 		if err != nil {
 			return false, err
