@@ -182,6 +182,7 @@ func (r *Recorder) session(ctx context.Context, s *Session, mu *sync.Mutex, save
 		}
 
 		mu.Lock()
+
 		s.Frames = append(s.Frames, f)
 		err := save()
 		mu.Unlock()

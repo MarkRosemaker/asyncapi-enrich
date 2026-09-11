@@ -163,6 +163,7 @@ func (m *Masker) Value(v jsontext.Value) (jsontext.Value, error) {
 	}
 
 	var buf bytes.Buffer
+
 	dec := jsontext.NewDecoder(bytes.NewReader(v))
 	enc := jsontext.NewEncoder(&buf)
 

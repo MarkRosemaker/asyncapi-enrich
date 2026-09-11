@@ -35,6 +35,7 @@ func main() {
 func run() error {
 	specPath := flag.String("spec", "api/asyncapi.json", "path to the AsyncAPI spec file")
 	sessionsPath := flag.String("sessions", "api/sessions.json", "path to the sessions file")
+
 	flag.Parse()
 
 	doc, err := asyncapi.LoadFromFile(*specPath)
