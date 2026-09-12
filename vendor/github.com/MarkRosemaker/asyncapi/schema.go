@@ -183,7 +183,7 @@ var _ json.UnmarshalerFrom = (*Schema)(nil)
 // UnmarshalJSONFrom unmarshals the schema, which may be a boolean schema.
 func (s *Schema) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	switch dec.PeekKind() {
-	case 't', 'f':
+	case jsontext.KindTrue, jsontext.KindFalse:
 		var b bool
 		if err := json.UnmarshalDecode(dec, &b); err != nil {
 			return err
@@ -192,9 +192,9 @@ func (s *Schema) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 		s.Boolean = &b
 
 		return nil
+	default:
+		return json.UnmarshalDecode(dec, (*schemaValue)(s))
 	}
-
-	return json.UnmarshalDecode(dec, (*schemaValue)(s))
 }
 
 var _ json.MarshalerTo = (*Schema)(nil)
