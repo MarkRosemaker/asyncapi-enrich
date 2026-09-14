@@ -53,9 +53,3 @@ Edit the directory, never the file:
 - Reply to review feedback in the conversation with whoever raised it, not as
   a comment on the pull request.
 - Resolve a thread once you have acted on it.
-
-## Particular to this repository
-
-Open one when the work touches it.
-
-- [Reference Documentation](AGENTS/legacy.md)
