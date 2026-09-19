@@ -8,22 +8,10 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"uuid"
 
 	"github.com/MarkRosemaker/asyncapi"
 	apitypes "github.com/go-api-libs/types"
-	"github.com/google/uuid"
-)
-
-// The string formats JSON Schema defines that [asyncapi.Format] does not name as
-// constants — it only names the numeric and binary ones. These are used as-is:
-// they are standard JSON Schema vocabulary, so a name asyncapi.Format leaves
-// open is still the correct thing to write.
-const (
-	formatUUID  asyncapi.Format = "uuid"
-	formatURI   asyncapi.Format = "uri"
-	formatEmail asyncapi.Format = "email"
-	formatIPv4  asyncapi.Format = "ipv4"
-	formatIPv6  asyncapi.Format = "ipv6"
 )
 
 // newSchemaFromJSON infers an AsyncAPI schema from a JSON-encoded value.
@@ -237,16 +225,16 @@ func decodeArraySchema(dec *jsontext.Decoder) (*asyncapi.Schema, error) {
 // stringFormat detects the format of a string value.
 // It tries in order: UUID, URI, email, date-time (RFC3339), IPv4/IPv6.
 func stringFormat(s string) asyncapi.Format {
-	if uuid.Validate(s) == nil {
-		return formatUUID
+	if _, err := uuid.Parse(s); err == nil {
+		return asyncapi.FormatUUID
 	}
 
 	if u, err := url.Parse(s); err == nil && u.Scheme != "" && u.Host != "" {
-		return formatURI
+		return asyncapi.FormatURI
 	}
 
 	if apitypes.Email(s).Validate() == nil {
-		return formatEmail
+		return asyncapi.FormatEmail
 	}
 
 	if _, err := time.Parse(time.RFC3339, s); err == nil {
@@ -255,10 +243,10 @@ func stringFormat(s string) asyncapi.Format {
 
 	if ip := net.ParseIP(s); ip != nil {
 		if ip.To4() != nil {
-			return formatIPv4
+			return asyncapi.FormatIPv4
 		}
 
-		return formatIPv6
+		return asyncapi.FormatIPv6
 	}
 
 	return ""
