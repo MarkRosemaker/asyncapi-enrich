@@ -3,7 +3,7 @@ module github.com/MarkRosemaker/asyncapi-enrich
 go 1.27
 
 require (
-	github.com/MarkRosemaker/asyncapi v0.0.0-20260919112358-b17c52bbbcde
+	github.com/MarkRosemaker/asyncapi v0.0.0-20260919123116-20141bff6ad7
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/go-api-libs/types v0.0.0-20260821232109-0cf45378823e
 	github.com/google/uuid v1.6.0

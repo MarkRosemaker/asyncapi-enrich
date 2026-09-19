@@ -1,7 +1,7 @@
 cloud.google.com/go v0.123.0 h1:2NAUJwPR47q+E35uaJeYoNhuNEM9kM8SjgRgdeOJUSE=
 cloud.google.com/go v0.123.0/go.mod h1:xBoMV08QcqUGuPW65Qfm1o9Y4zKZBpGS+7bImXLTAZU=
-github.com/MarkRosemaker/asyncapi v0.0.0-20260919112358-b17c52bbbcde h1:f4k9Zl3TWf5XbvYiqN9je3xRWnfwcIXDBRZyk0Xqmrg=
-github.com/MarkRosemaker/asyncapi v0.0.0-20260919112358-b17c52bbbcde/go.mod h1:mu7gAiqqV1/tVlzcNu8IJ9K9ObP2SNUhCy0tnbKxGHg=
+github.com/MarkRosemaker/asyncapi v0.0.0-20260919123116-20141bff6ad7 h1:nk6fu7nsW8VLvi9a20CGCbv8Adjzh+hwfqtmnH8DUdo=
+github.com/MarkRosemaker/asyncapi v0.0.0-20260919123116-20141bff6ad7/go.mod h1:mu7gAiqqV1/tVlzcNu8IJ9K9ObP2SNUhCy0tnbKxGHg=
 github.com/MarkRosemaker/errpath v0.0.0-20260919112307-d5c7994551ff h1:zNVWSqFwWzqiJVtk2YMrCSrq6CNqGjkIqbs8AVidbOA=
 github.com/MarkRosemaker/errpath v0.0.0-20260919112307-d5c7994551ff/go.mod h1:VnXpUlsS3n1gSToedcQl2FCARGoA16CyitbCanUIv+I=
 github.com/MarkRosemaker/json2yaml v0.0.0-20260919112308-a1b4c0dc8893 h1:W3XG3BhHt45+VaY0hMk6AcuCvf8RcSUZBPFL+kQzzkQ=

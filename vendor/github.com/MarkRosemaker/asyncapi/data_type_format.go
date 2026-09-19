@@ -30,6 +30,22 @@ const (
 	FormatDateTime Format = "date-time"
 	// FormatPassword is a hint to UIs that the input needs to be obscured.
 	FormatPassword Format = "password"
+	// FormatUUID represents a UUID. Not one of the formats the AsyncAPI
+	// Specification itself defines (see [Format.IsKnown]), but one of the
+	// JSON Schema formats the specification explicitly permits.
+	FormatUUID Format = "uuid"
+	// FormatURI represents a URI, as defined by JSON Schema. See
+	// [Format.IsKnown]'s doc comment.
+	FormatURI Format = "uri"
+	// FormatEmail represents an email address, as defined by JSON Schema.
+	// See [Format.IsKnown]'s doc comment.
+	FormatEmail Format = "email"
+	// FormatIPv4 represents an IPv4 address, as defined by JSON Schema. See
+	// [Format.IsKnown]'s doc comment.
+	FormatIPv4 Format = "ipv4"
+	// FormatIPv6 represents an IPv6 address, as defined by JSON Schema. See
+	// [Format.IsKnown]'s doc comment.
+	FormatIPv6 Format = "ipv6"
 )
 
 // allFormats are the formats defined by the AsyncAPI Specification.
