@@ -76,6 +76,12 @@
           "message"
         ],
         "properties": {
+          "type": {
+            "type": "string",
+            "examples": [
+              "pricing"
+            ]
+          },
           "message": {
             "type": "string",
             "examples": [
@@ -84,12 +90,6 @@
               "CgRBQVBMFYaQnkMY0NG+iYloKgNOTVMwCDgBRRhxTz9ImMu3AmWAJCNA2AEE"
             ],
             "contentEncoding": "base64"
-          },
-          "type": {
-            "type": "string",
-            "examples": [
-              "pricing"
-            ]
           }
         }
       },

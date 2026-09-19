@@ -34,6 +34,8 @@ func TestEnrich_TestData(t *testing.T) {
 
 	for _, tc := range entries {
 		t.Run(tc.Name(), func(t *testing.T) {
+			t.Parallel()
+
 			data, err := testdata.ReadFile(filepath.Join("testdata", tc.Name(), "api", "sessions.json"))
 			if err != nil {
 				t.Fatal(err)
@@ -74,6 +76,10 @@ func TestEnrich_TestData(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
+
+					// NOTE: uncomment to regenerate golden
+					// path := filepath.Join("testdata", tc.Name(), "api", "golden.json")
+					// _ = os.WriteFile(path, gotDoc, 0o644)
 
 					compareBytes(t, wantDoc, gotDoc)
 				})
