@@ -372,7 +372,6 @@ func (s *Schema) SortMaps() {
 		return
 	}
 
-	s.Properties.Sort()
 	s.PatternProperties.Sort()
 	s.Definitions.Sort()
 
