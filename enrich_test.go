@@ -36,7 +36,9 @@ func TestEnrich_TestData(t *testing.T) {
 		t.Run(tc.Name(), func(t *testing.T) {
 			t.Parallel()
 
-			data, err := testdata.ReadFile(filepath.Join("testdata", tc.Name(), "api", "sessions.json"))
+			dir := filepath.Join("testdata", tc.Name(), "api")
+
+			data, err := testdata.ReadFile(filepath.Join(dir, "sessions.json"))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -46,20 +48,18 @@ func TestEnrich_TestData(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			wantDoc, err := testdata.ReadFile(filepath.Join("testdata", tc.Name(), "api", "golden.json"))
+			wantDoc, err := testdata.ReadFile(filepath.Join(dir, "golden.json"))
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			doc := enrich.NewDocument()
-
-			if data, err := testdata.ReadFile(filepath.Join("testdata", tc.Name(), "api", "asyncapi.json")); err == nil {
-				doc, err = asyncapi.LoadFromDataJSON(data)
-				if err != nil {
+			doc, err := asyncapi.LoadFromFile(filepath.Join(dir, "asyncapi.json"))
+			if err != nil {
+				if !errors.Is(err, fs.ErrNotExist) {
 					t.Fatalf("loading initial spec: %v", err)
 				}
-			} else if !errors.Is(err, fs.ErrNotExist) {
-				t.Fatal(err)
+
+				doc = enrich.NewDocument()
 			}
 
 			for it := range 3 {
@@ -78,7 +78,7 @@ func TestEnrich_TestData(t *testing.T) {
 					}
 
 					// NOTE: uncomment to regenerate golden
-					// path := filepath.Join("testdata", tc.Name(), "api", "golden.json")
+					// path := filepath.Join(dir, "golden.json")
 					// _ = os.WriteFile(path, gotDoc, 0o644)
 
 					compareBytes(t, wantDoc, gotDoc)
