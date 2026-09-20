@@ -24,10 +24,10 @@ linters:
                 - map
             default-signifies-exhaustive: true
         govet:
+            disable:
+                - fieldalignment
+                - shadow
             enable-all: true
-            settings:
-                shadow:
-                    strict: true
         tagalign:
             align: true
             sort: true
