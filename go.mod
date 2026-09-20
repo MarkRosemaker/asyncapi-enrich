@@ -12,10 +12,10 @@ require (
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
-	github.com/MarkRosemaker/errpath v0.0.0-20260920104944-9de8ba79be18 // indirect
+	github.com/MarkRosemaker/errpath v0.0.0-20260920105750-ecc3a0fa028d // indirect
 	github.com/MarkRosemaker/json2yaml v0.0.0-20260920104944-bbfc9b6648b0 // indirect
 	github.com/MarkRosemaker/jsonutil v0.0.0-20260920104948-8e763fe0b771 // indirect
-	github.com/MarkRosemaker/ordmap v0.0.0-20260920105004-95e6a702ad57 // indirect
+	github.com/MarkRosemaker/ordmap v0.0.0-20260920112340-841d22da417a // indirect
 	github.com/MarkRosemaker/yaml v0.0.0-20260920105018-6263ee74cfdf // indirect
 	github.com/MarkRosemaker/yaml2json v0.0.0-20260920104951-dc9a2bf64fb4 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect

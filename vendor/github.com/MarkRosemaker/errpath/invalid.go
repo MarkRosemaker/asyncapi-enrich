@@ -10,9 +10,12 @@ var _ pathWriter = (*ErrInvalid[string])(nil)
 
 // ErrInvalid signals that a value is invalid.
 type ErrInvalid[T any] struct {
-	Value   T
+	// The value that is invalid.
+	Value T
+	// An optional message that explains the error.
 	Message string
-	Enum    []T
+	// An optional list of valid values.
+	Enum []T
 }
 
 // Error returns helpful information about the invalid field and how to fix it.

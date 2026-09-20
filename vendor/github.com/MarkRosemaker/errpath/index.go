@@ -9,7 +9,9 @@ var _ pathWriter = (*ErrIndex)(nil)
 
 // ErrIndex is an error that occurred in a slice. It contains the index of the element.
 type ErrIndex struct {
-	Err   error
+	// The underlying error.
+	Err error
+	// The index of the slice where the error occurred.
 	Index int
 }
 
