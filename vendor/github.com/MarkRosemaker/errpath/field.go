@@ -6,10 +6,8 @@ var _ pathWriter = (*ErrField)(nil)
 
 // ErrField is an error that occurred in a field.
 type ErrField struct {
-	// The name of the field where the error occurred.
+	Err   error
 	Field string
-	// The underlying error.
-	Err error
 }
 
 // Error returns the whole path to the field and the error message.
