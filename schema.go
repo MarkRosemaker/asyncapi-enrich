@@ -167,7 +167,7 @@ func decodeObjectSchema(dec *jsontext.Decoder) (*asyncapi.Schema, error) {
 	}
 
 	for _, p := range pairs {
-		s.Properties[p.key] = &asyncapi.AnySchemaRef{Value: &asyncapi.AnySchema{Schema: p.schema}}
+		s.Properties.Set(p.key, &asyncapi.AnySchemaRef{Value: &asyncapi.AnySchema{Schema: p.schema}})
 		s.Required = append(s.Required, p.key)
 	}
 
