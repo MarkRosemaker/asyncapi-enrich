@@ -127,10 +127,15 @@ func mergeObject(a, b *asyncapi.Schema) error {
 		a.Properties = asyncapi.Schemas{}
 	}
 
-	for key, bProp := range b.Properties {
+	for key, bProp := range b.Properties.ByIndex() {
 		aProp, ok := a.Properties[key]
 		if !ok {
-			a.Properties[key] = bProp
+			// Set, not a raw map write: bProp still carries its index from
+			// b's own property order, which has nothing to do with a's — a
+			// raw write would leave it colliding with (or out of step with)
+			// a's existing indices instead of taking the next one in a's
+			// own order.
+			a.Properties.Set(key, bProp)
 
 			continue
 		}
