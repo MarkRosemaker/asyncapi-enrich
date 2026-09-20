@@ -17,9 +17,9 @@ var ErrEmptyMessageExample = errors.New("must contain either headers and/or payl
 // [Specification]: https://github.com/asyncapi/spec/blob/master/spec/asyncapi.md#messageExampleObject
 type MessageExample struct {
 	// The value of this field MUST validate against the headers of the message.
-	Headers jsontext.Value `json:"headers,omitempty" yaml:"headers,omitempty"`
+	Headers jsontext.Value `json:"headers,omitzero" yaml:"headers,omitempty"`
 	// The value of this field MUST validate against the payload of the message.
-	Payload jsontext.Value `json:"payload,omitempty" yaml:"payload,omitempty"`
+	Payload jsontext.Value `json:"payload,omitzero" yaml:"payload,omitempty"`
 	// A machine-friendly name.
 	Name string `json:"name,omitempty" yaml:"name,omitempty"`
 	// A short summary of what the example is about.

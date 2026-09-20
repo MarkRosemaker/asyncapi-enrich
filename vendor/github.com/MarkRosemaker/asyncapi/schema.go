@@ -126,10 +126,10 @@ type Schema struct {
 	// A list of possible values.
 	Enum []jsontext.Value `json:"enum,omitempty" yaml:"enum,omitempty"`
 	// The only possible value.
-	Const jsontext.Value `json:"const,omitempty" yaml:"const,omitempty"`
+	Const jsontext.Value `json:"const,omitzero" yaml:"const,omitempty"`
 	// The value that is used if no other value is present.
 	// Unlike JSON Schema, the value MUST conform to the defined type for the schema defined at the same level.
-	Default jsontext.Value `json:"default,omitempty" yaml:"default,omitempty"`
+	Default jsontext.Value `json:"default,omitzero" yaml:"default,omitempty"`
 	// A list of examples of the value.
 	Examples []jsontext.Value `json:"examples,omitempty" yaml:"examples,omitempty"`
 

@@ -3,7 +3,7 @@ module github.com/MarkRosemaker/asyncapi-enrich
 go 1.27.0
 
 require (
-	github.com/MarkRosemaker/asyncapi v0.0.0-20260920121503-8c59b3254840
+	github.com/MarkRosemaker/asyncapi v0.0.0-20260920161935-230a4ff40c29
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/go-api-libs/types v0.0.0-20260821232109-0cf45378823e
 	github.com/gorilla/websocket v1.5.3

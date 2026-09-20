@@ -1,7 +1,7 @@
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
 cloud.google.com/go/civil
-# github.com/MarkRosemaker/asyncapi v0.0.0-20260920121503-8c59b3254840
+# github.com/MarkRosemaker/asyncapi v0.0.0-20260920161935-230a4ff40c29
 ## explicit; go 1.27.0
 github.com/MarkRosemaker/asyncapi
 # github.com/MarkRosemaker/errpath v0.0.0-20260920114347-639d98dfaa6b
