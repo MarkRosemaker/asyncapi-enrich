@@ -12,7 +12,8 @@
         {
           "$ref": "#/components/securitySchemes/token"
         }
-      ]
+      ],
+      "x-tls": true
     }
   },
   "defaultContentType": "application/json",

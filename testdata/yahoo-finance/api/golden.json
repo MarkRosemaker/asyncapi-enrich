@@ -7,7 +7,8 @@
   "servers": {
     "streamer-finance-yahoo-com": {
       "host": "streamer.finance.yahoo.com",
-      "protocol": "ws"
+      "protocol": "ws",
+      "x-tls": true
     }
   },
   "defaultContentType": "application/json",

@@ -158,6 +158,13 @@ func ensureServer(doc *asyncapi.Document, u *url.URL) (string, error) {
 		srv.Pathname = u.Path
 	}
 
+	if u.Scheme == "wss" {
+		// The protocol enum has nowhere to record this, so it goes in an
+		// extension instead — the one place downstream tooling can still
+		// find that this recording used TLS.
+		srv.Extensions = jsontext.Value(`{"x-tls":true}`)
+	}
+
 	if err := addCredentialSecurity(doc, srv, u); err != nil {
 		return "", err
 	}
