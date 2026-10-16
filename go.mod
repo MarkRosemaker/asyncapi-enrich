@@ -3,21 +3,21 @@ module github.com/MarkRosemaker/asyncapi-enrich
 go 1.27.0
 
 require (
-	github.com/MarkRosemaker/asyncapi v0.0.0-20261016100238-4dc404370552
+	github.com/MarkRosemaker/asyncapi v0.0.0-20261016110438-f0a0049d61bf
 	github.com/bufbuild/protocompile v0.14.1
-	github.com/go-api-libs/types v0.0.0-20260821232109-0cf45378823e
+	github.com/go-api-libs/types v0.0.0-20261016110315-ed8249d46e89
 	github.com/gorilla/websocket v1.5.3
 	google.golang.org/protobuf v1.36.12
 )
 
 require (
 	cloud.google.com/go v0.123.0 // indirect
-	github.com/MarkRosemaker/errpath v0.0.0-20261011100139-0f973ba10436 // indirect
-	github.com/MarkRosemaker/json2yaml v0.0.0-20261011100139-2d7c8ec80f68 // indirect
-	github.com/MarkRosemaker/jsonutil v0.0.0-20261016100147-71b5e319deaa // indirect
-	github.com/MarkRosemaker/ordmap v0.0.0-20261014160122-d6113d0a91f7 // indirect
-	github.com/MarkRosemaker/yaml v0.0.0-20261011100206-7a238ac9deda // indirect
-	github.com/MarkRosemaker/yaml2json v0.0.0-20261011100139-1181ffd29042 // indirect
+	github.com/MarkRosemaker/errpath v0.0.0-20261016110315-f418d8a9c89d // indirect
+	github.com/MarkRosemaker/json2yaml v0.0.0-20261016110315-5aef3717d3ec // indirect
+	github.com/MarkRosemaker/jsonutil v0.0.0-20261016110315-2570954341ab // indirect
+	github.com/MarkRosemaker/ordmap v0.0.0-20261016110346-7943cbe36691 // indirect
+	github.com/MarkRosemaker/yaml v0.0.0-20261016110357-e4eff9824664 // indirect
+	github.com/MarkRosemaker/yaml2json v0.0.0-20261016110315-3eaa144544e0 // indirect
 	golang.org/x/exp v0.0.0-20261014143641-f0251eb4aa3e // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
