@@ -1,13 +1,13 @@
 cloud.google.com/go v0.123.0 h1:2NAUJwPR47q+E35uaJeYoNhuNEM9kM8SjgRgdeOJUSE=
 cloud.google.com/go v0.123.0/go.mod h1:xBoMV08QcqUGuPW65Qfm1o9Y4zKZBpGS+7bImXLTAZU=
-github.com/MarkRosemaker/asyncapi v0.0.0-20261016040148-89a3777ce785 h1:xyrtLJEdEfVUimHugTGlsMfSwxjOHg0pX4vmO1UxxSQ=
-github.com/MarkRosemaker/asyncapi v0.0.0-20261016040148-89a3777ce785/go.mod h1:3MIuK9OaPREr7N0RJUJO8z0hwDLnMaPWqm9IG5VgvDw=
+github.com/MarkRosemaker/asyncapi v0.0.0-20261016100238-4dc404370552 h1:YTCUfiPmo/EFCu7KKPl2svRqqNSUEupOdKciKrl2aFQ=
+github.com/MarkRosemaker/asyncapi v0.0.0-20261016100238-4dc404370552/go.mod h1:6cp14lCchlzcr9S/rtSwUfSf5PV0u//e4t1SAGDJq5Q=
 github.com/MarkRosemaker/errpath v0.0.0-20261011100139-0f973ba10436 h1:K8rswHZpg8TLt5qQEamgnN4QR5/1sKSymXvhY0TGiCg=
 github.com/MarkRosemaker/errpath v0.0.0-20261011100139-0f973ba10436/go.mod h1:VnXpUlsS3n1gSToedcQl2FCARGoA16CyitbCanUIv+I=
 github.com/MarkRosemaker/json2yaml v0.0.0-20261011100139-2d7c8ec80f68 h1:OioRuqNICzAZvbBCGJA+LCaiB6Y+JtJNNON1A4DwVuo=
 github.com/MarkRosemaker/json2yaml v0.0.0-20261011100139-2d7c8ec80f68/go.mod h1:eUwIjjooIESK1Ymw4bbMdSDF6feAblyZjxyoo5o/W6U=
-github.com/MarkRosemaker/jsonutil v0.0.0-20261015233346-026192cb8989 h1:6bVKt0IPXhMHFfGDCgw4+Bz+w1qSNg2fim8hFlTSdls=
-github.com/MarkRosemaker/jsonutil v0.0.0-20261015233346-026192cb8989/go.mod h1:SzjJlgYFlzpbFGvUUoQgfEsWlbai63bvhDPK8J0MNYM=
+github.com/MarkRosemaker/jsonutil v0.0.0-20261016100147-71b5e319deaa h1:ZT6Y9isDLehUA3DkG5S2mxr7VRaJ8h5mZCsrNZNs8jQ=
+github.com/MarkRosemaker/jsonutil v0.0.0-20261016100147-71b5e319deaa/go.mod h1:SzjJlgYFlzpbFGvUUoQgfEsWlbai63bvhDPK8J0MNYM=
 github.com/MarkRosemaker/ordmap v0.0.0-20261014160122-d6113d0a91f7 h1:n6UEIpOB+OyqQRtjhs7uB4/XbjGEVbOyM5fUDzviF/E=
 github.com/MarkRosemaker/ordmap v0.0.0-20261014160122-d6113d0a91f7/go.mod h1:mS4r7p7cdSLfcWIvgBkfkCrIOZfaHz0SIqr/Sli7ndw=
 github.com/MarkRosemaker/yaml v0.0.0-20261011100206-7a238ac9deda h1:6PGhEB9jXFPdOsFTUmIQXTtgfy6nlmD6FGo4XmOyV3Q=
