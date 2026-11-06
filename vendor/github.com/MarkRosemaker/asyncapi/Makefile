@@ -81,5 +81,5 @@ tools:
 clean:
 	rm -rf $(CLEAN_FILES)
 
-# Named, not matched: a fragment added since this was generated is not read yet.
-include mk/legacy.mk
+# Named, not matched: one added since this was generated is not read yet, and one deleted is skipped.
+-include mk/legacy.mk
