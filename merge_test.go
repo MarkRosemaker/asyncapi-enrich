@@ -3,6 +3,7 @@ package enrich_test
 import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
+	"strings"
 	"testing"
 
 	"github.com/MarkRosemaker/asyncapi"
@@ -182,5 +183,82 @@ func TestMergeMaskedFieldHasNoExample(t *testing.T) {
 
 	if len(session.Examples) != 0 {
 		t.Errorf("session.examples: got %v, want none", session.Examples)
+	}
+}
+
+// TestMergeNullAndObject checks that a field seen as both null and an object
+// keeps the object's shape and a type union, whichever came first.
+func TestMergeNullAndObject(t *testing.T) {
+	for name, payloads := range map[string][]string{
+		"null first":   {`{"type":"q","v":null}`, `{"type":"q","v":{"a":1}}`},
+		"object first": {`{"type":"q","v":{"a":1}}`, `{"type":"q","v":null}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			v := merge(t, "Q", payloads...).Properties["v"].Value.Schema
+
+			if got := mustJSON(t, v.Type); got != `["object","null"]` {
+				t.Errorf("v.type: got %s, want [\"object\",\"null\"]", got)
+			}
+
+			if _, ok := v.Properties["a"]; !ok {
+				t.Errorf("v lost its property a")
+			}
+		})
+	}
+}
+
+// TestMergeEmptyArrayThenItems checks that an empty array, which says nothing
+// about its items, takes the item schema of a later non-empty one.
+func TestMergeEmptyArrayThenItems(t *testing.T) {
+	c := merge(t, "T", `{"type":"t","c":[]}`, `{"type":"t","c":["x"]}`).Properties["c"].Value.Schema
+
+	if c.Items == nil || !c.Items.Value.Schema.Type.Contains(asyncapi.TypeString) {
+		t.Fatalf("c.items: got %+v, want a string schema", c.Items)
+	}
+}
+
+// TestMergeNumericKeyedMapAcrossSamples checks that the value schemas of a
+// map merge across samples, and that an empty object becomes the map once a
+// sample shows what it holds.
+func TestMergeNumericKeyedMapAcrossSamples(t *testing.T) {
+	items := merge(t, "Batch",
+		`{"type":"batch","items":{}}`,
+		`{"type":"batch","items":{"0":{"id":"a","n":1}}}`,
+		`{"type":"batch","items":{"7":{"id":"b"}}}`,
+	).Properties["items"].Value.Schema
+
+	if items.AdditionalProperties == nil {
+		t.Fatal("items should have additionalProperties")
+	}
+
+	value := items.AdditionalProperties.Value.Schema
+	if got := mustJSON(t, value.Required); got != `["id"]` {
+		t.Errorf("value.required: got %s, want [\"id\"]", got)
+	}
+
+	if _, ok := value.Properties["n"]; !ok {
+		t.Errorf("the optional field n was dropped")
+	}
+}
+
+// TestMergeObjectAndArrayConflict checks that a field seen as an object in one
+// sample and an array in another is refused rather than merged into nonsense.
+func TestMergeObjectAndArrayConflict(t *testing.T) {
+	doc := enrich.NewDocument()
+	ss := enrich.Sessions{{
+		URI: "ws://example.invalid",
+		Frames: []*enrich.Frame{
+			{Receive: jsontext.Value(`{"type":"q","v":{"a":1}}`)},
+			{Receive: jsontext.Value(`{"type":"q","v":[1]}`)},
+		},
+	}}
+
+	err := enrich.Enrich(doc, ss)
+	if err == nil || !strings.Contains(err.Error(), "both object- and array-shaped") {
+		t.Fatalf("got %v, want an object/array conflict", err)
+	}
+
+	if !strings.Contains(err.Error(), `property "v"`) {
+		t.Errorf("the error does not name the property: %v", err)
 	}
 }

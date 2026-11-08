@@ -318,16 +318,15 @@ func ensureOperation(doc *asyncapi.Document, direction, serverKey, chKey string,
 
 	chRef := "#/channels/" + chKey
 
-	key := direction
-	if existing, ok := doc.Operations[key]; ok &&
-		(existing.Value.Channel == nil || existing.Value.Channel.Ref == nil || existing.Value.Channel.Ref.Identifier != chRef) {
-		// The plain name is already another channel's operation — fall back to
-		// a name that is unique to this one rather than overwrite it.
-		key = uniqueKey(doc.Operations, direction+pascalCase(serverKey))
-	}
+	op := findOperation(doc, direction, chRef)
+	if op == nil {
+		key := direction
+		if _, ok := doc.Operations[key]; ok {
+			// The plain name is already another channel's operation — fall back
+			// to a name that is unique to this one rather than overwrite it.
+			key = uniqueKey(doc.Operations, direction+pascalCase(serverKey))
+		}
 
-	op, ok := doc.Operations[key]
-	if !ok {
 		op = &asyncapi.OperationRef{Value: &asyncapi.Operation{
 			Action:  asyncapi.OperationAction(direction),
 			Channel: &asyncapi.ChannelRef{Ref: &asyncapi.Reference{Identifier: chRef}},
@@ -352,6 +351,19 @@ func ensureOperation(doc *asyncapi.Document, direction, serverKey, chKey string,
 			Ref: &asyncapi.Reference{Identifier: chRef + "/messages/" + name},
 		})
 	}
+}
+
+// findOperation returns the operation already doing direction on the channel
+// chRef refers to, whatever key an earlier run gave it.
+func findOperation(doc *asyncapi.Document, direction, chRef string) *asyncapi.OperationRef {
+	for _, op := range doc.Operations {
+		if op.Value != nil && string(op.Value.Action) == direction &&
+			op.Value.Channel != nil && op.Value.Channel.Ref != nil && op.Value.Channel.Ref.Identifier == chRef {
+			return op
+		}
+	}
+
+	return nil
 }
 
 // soleKey returns the one top-level member name of payload, if it is a JSON

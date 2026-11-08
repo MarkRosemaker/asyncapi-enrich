@@ -18,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 
@@ -26,17 +27,22 @@ import (
 )
 
 func main() {
-	if err := run(); err != nil {
+	if err := run(os.Args[1:], os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "asyncapi-enrich:", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
-	specPath := flag.String("spec", "api/asyncapi.json", "path to the AsyncAPI spec file")
-	sessionsPath := flag.String("sessions", "api/sessions.json", "path to the sessions file")
+func run(args []string, stderr io.Writer) error {
+	flags := flag.NewFlagSet("asyncapi-enrich", flag.ContinueOnError)
+	flags.SetOutput(stderr)
 
-	flag.Parse()
+	specPath := flags.String("spec", "api/asyncapi.json", "path to the AsyncAPI spec file")
+	sessionsPath := flags.String("sessions", "api/sessions.json", "path to the sessions file")
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
 
 	doc, err := asyncapi.LoadFromFile(*specPath)
 	if err != nil {

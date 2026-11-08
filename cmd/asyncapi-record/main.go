@@ -26,6 +26,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strconv"
@@ -59,33 +60,42 @@ func (k kinds) Set(v string) error {
 }
 
 func main() {
-	if err := run(); err != nil {
+	// A recording that is interrupted still keeps what it has: the frames that
+	// did arrive are the point, and they are worth more than a clean exit.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+
+	err := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
+
+	stop()
+
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "asyncapi-record:", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("asyncapi-record", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+
 	var (
-		file    = flag.String("f", "api/sessions.json", "the sessions file to record into")
-		timeout = flag.Duration("timeout", time.Minute, "how long to listen before giving up")
-		msgs    = flag.Int("messages", 0, "how many received frames to wait for")
-		discrim = flag.String("discriminator", "type", "the field naming the kind of a received message")
+		file    = flags.String("f", "api/sessions.json", "the sessions file to record into")
+		timeout = flags.Duration("timeout", time.Minute, "how long to listen before giving up")
+		msgs    = flags.Int("messages", 0, "how many received frames to wait for")
+		discrim = flags.String("discriminator", "type", "the field naming the kind of a received message")
 		ks      = kinds{}
 	)
 
-	flag.Var(ks, "kinds", "how many of each kind to wait for, e.g. trade=3,ping=1")
-	flag.Parse()
+	flags.Var(ks, "kinds", "how many of each kind to wait for, e.g. trade=3,ping=1")
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
 
 	ss, err := enrich.LoadFromFile(*file)
 	if err != nil {
 		return err
 	}
-
-	// A recording that is interrupted still keeps what it has: the frames that
-	// did arrive are the point, and they are worth more than a clean exit.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	rec := &enrich.Recorder{
 		Until: &enrich.Until{
@@ -112,10 +122,10 @@ func run() error {
 		return recErr
 	}
 
-	fmt.Println(rep)
+	_, _ = fmt.Fprintln(stdout, rep)
 
 	if !rep.Complete() {
-		fmt.Fprintln(os.Stderr,
+		_, _ = fmt.Fprintln(stderr,
 			"\nSome conditions went unmet. That is a finding about the API, not a\n"+
 				"failure: record again, or write the specification to say so.")
 	}
