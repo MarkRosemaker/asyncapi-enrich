@@ -1,7 +1,7 @@
 cloud.google.com/go v0.123.0 h1:2NAUJwPR47q+E35uaJeYoNhuNEM9kM8SjgRgdeOJUSE=
 cloud.google.com/go v0.123.0/go.mod h1:xBoMV08QcqUGuPW65Qfm1o9Y4zKZBpGS+7bImXLTAZU=
-github.com/MarkRosemaker/asyncapi v0.0.0-20261109120558-9c60139d2185 h1:dKWDDtizLQ3gpGafbZVmXJFn7EQkIFigaCp7RVoj7Ss=
-github.com/MarkRosemaker/asyncapi v0.0.0-20261109120558-9c60139d2185/go.mod h1:OpZW1+E3anithUIG6jtaC1k/6nxyg6Q03A9eDiMvTtk=
+github.com/MarkRosemaker/asyncapi v0.0.0-20261109135104-27e4c3ee58db h1:me4fGlelnjaDc2XYcmBTgviHlkdr+YfGQYCTldLavf8=
+github.com/MarkRosemaker/asyncapi v0.0.0-20261109135104-27e4c3ee58db/go.mod h1:Y+6nSIz+LIwQrX1Euyq2/wBtgnUMRmq0aUMRW1ML8Ek=
 github.com/MarkRosemaker/errpath v0.0.0-20261109120451-91cd29644c73 h1:7Ck9Aagyl3mRqKfm3FmkCvWxTx7wZzSrg+14C0zFrc0=
 github.com/MarkRosemaker/errpath v0.0.0-20261109120451-91cd29644c73/go.mod h1:VnXpUlsS3n1gSToedcQl2FCARGoA16CyitbCanUIv+I=
 github.com/MarkRosemaker/json2yaml v0.0.0-20261109120452-2329987d7bc8 h1:kZvQlxy2u7OzPYxBv35KC13QtNCwix0RIoCC7IjGZCI=
@@ -10,8 +10,8 @@ github.com/MarkRosemaker/jsonutil v0.0.0-20261109120454-26f22c55639c h1:Q2xr91dM
 github.com/MarkRosemaker/jsonutil v0.0.0-20261109120454-26f22c55639c/go.mod h1:SzjJlgYFlzpbFGvUUoQgfEsWlbai63bvhDPK8J0MNYM=
 github.com/MarkRosemaker/ordmap v0.0.0-20261109120513-91fe4bc7e3db h1:+DyvHqRv5C1PcrOo/4MU1Om5U1MW20ljpX2MkXT0jz0=
 github.com/MarkRosemaker/ordmap v0.0.0-20261109120513-91fe4bc7e3db/go.mod h1:00yYFZepjv5bupHBSZYRR/4y2kHr8DU56nu4Rn9jDvE=
-github.com/MarkRosemaker/yaml v0.0.0-20261109120525-183cb2f5021f h1:E25FxMtk2y/H76HCd3surSeBxVe+YOJrZHqAqzuuucw=
-github.com/MarkRosemaker/yaml v0.0.0-20261109120525-183cb2f5021f/go.mod h1:H1+ZbiuYuJWKSxAdWVN6tBh9d7fspqy+4WI06ChuYuU=
+github.com/MarkRosemaker/yaml v0.0.0-20261109134148-916ecfa7e164 h1:w3QusAtbGdILLBrKD5tmJSIcu4VZm8Q/VVKzB4mGKic=
+github.com/MarkRosemaker/yaml v0.0.0-20261109134148-916ecfa7e164/go.mod h1:H1+ZbiuYuJWKSxAdWVN6tBh9d7fspqy+4WI06ChuYuU=
 github.com/MarkRosemaker/yaml2json v0.0.0-20261109120453-1b901dbf7e8f h1:Z3r19i6+E2MlbeS5YFnFwppE8bjbqTPGHnvWIhJLJZ4=
 github.com/MarkRosemaker/yaml2json v0.0.0-20261109120453-1b901dbf7e8f/go.mod h1:DxNA9SDFrzw+RHsnxjIxjUzHy0I4+3hZg7R13u3SBvE=
 github.com/bufbuild/protocompile v0.14.1 h1:iA73zAf/fyljNjQKwYzUHD6AD4R8KMasmwa/FBatYVw=
