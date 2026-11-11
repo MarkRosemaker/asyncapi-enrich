@@ -3,7 +3,7 @@ module github.com/MarkRosemaker/asyncapi-enrich
 go 1.27.0
 
 require (
-	github.com/MarkRosemaker/asyncapi v0.0.0-20261111024414-11464552265f
+	github.com/MarkRosemaker/asyncapi v0.0.0-20261111050346-c89c088f99ef
 	github.com/bufbuild/protocompile v0.14.1
 	github.com/go-api-libs/types v0.0.0-20261109120451-6cd1daca4971
 	github.com/gorilla/websocket v1.5.3
@@ -14,7 +14,7 @@ require (
 	cloud.google.com/go v0.123.0 // indirect
 	github.com/MarkRosemaker/errpath v0.0.0-20261109120451-91cd29644c73 // indirect
 	github.com/MarkRosemaker/json2yaml v0.0.0-20261109120452-2329987d7bc8 // indirect
-	github.com/MarkRosemaker/jsonutil v0.0.0-20261111023756-6c211037c3df // indirect
+	github.com/MarkRosemaker/jsonutil v0.0.0-20261111050223-68d2dd492e9f // indirect
 	github.com/MarkRosemaker/ordmap v0.0.0-20261109211921-475c54164ef0 // indirect
 	github.com/MarkRosemaker/yaml v0.0.0-20261109161623-86a6a512ccb9 // indirect
 	github.com/MarkRosemaker/yaml2json v0.0.0-20261109120453-1b901dbf7e8f // indirect
