@@ -1,7 +1,7 @@
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
 cloud.google.com/go/civil
-# github.com/MarkRosemaker/asyncapi v0.0.0-20261111050346-c89c088f99ef
+# github.com/MarkRosemaker/asyncapi v0.0.0-20261111150841-b8a8372659d5
 ## explicit; go 1.27.0
 github.com/MarkRosemaker/asyncapi
 # github.com/MarkRosemaker/errpath v0.0.0-20261109120451-91cd29644c73
@@ -10,7 +10,7 @@ github.com/MarkRosemaker/errpath
 # github.com/MarkRosemaker/json2yaml v0.0.0-20261109120452-2329987d7bc8
 ## explicit; go 1.27
 github.com/MarkRosemaker/json2yaml
-# github.com/MarkRosemaker/jsonutil v0.0.0-20261111050223-68d2dd492e9f
+# github.com/MarkRosemaker/jsonutil v0.0.0-20261111150633-f9633ee2a58b
 ## explicit; go 1.27
 github.com/MarkRosemaker/jsonutil
 # github.com/MarkRosemaker/ordmap v0.0.0-20261109211921-475c54164ef0
