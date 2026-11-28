@@ -1,7 +1,7 @@
 # cloud.google.com/go v0.123.0
 ## explicit; go 1.24.0
 cloud.google.com/go/civil
-# github.com/MarkRosemaker/asyncapi v0.0.0-20261127230216-df018ad882e0
+# github.com/MarkRosemaker/asyncapi v0.0.0-20261128050244-3bc9524a5ebe
 ## explicit; go 1.27.0
 github.com/MarkRosemaker/asyncapi
 # github.com/MarkRosemaker/errpath v0.0.0-20261127001931-41afc0b86075
@@ -13,7 +13,7 @@ github.com/MarkRosemaker/json2yaml
 # github.com/MarkRosemaker/jsonutil v0.0.0-20261127170131-4c1915dbe001
 ## explicit; go 1.27
 github.com/MarkRosemaker/jsonutil
-# github.com/MarkRosemaker/ordmap v0.0.0-20261127230155-d3a22df67650
+# github.com/MarkRosemaker/ordmap v0.0.0-20261128050215-9da629427541
 ## explicit; go 1.27
 github.com/MarkRosemaker/ordmap
 # github.com/MarkRosemaker/yaml v0.0.0-20261127001955-6df1e561eef1
@@ -43,7 +43,7 @@ github.com/go-api-libs/types
 # github.com/gorilla/websocket v1.5.3
 ## explicit; go 1.12
 github.com/gorilla/websocket
-# golang.org/x/exp v0.0.0-20261127181632-b10a66b71b35
+# golang.org/x/exp v0.0.0-20261128033645-f63ec7c7eed0
 ## explicit; go 1.26.0
 golang.org/x/exp/maps
 # golang.org/x/sync v0.25.0
